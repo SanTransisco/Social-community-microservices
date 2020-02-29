@@ -41,8 +41,42 @@ def home():
 
 @app.route('/api/posts/all', methods=['GET'])
 def all_posts():
-    all_posts = query_db('SELECT author, community, title FROM posts;')
-    return jsonify(all_posts)
+    #all_posts = query_db('SELECT author, community, title FROM posts;')
+    #return jsonify(all_posts)
+    with app.app_context():
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("SELECT author, community, title FROM posts;")
+        data = cur.fetchall()
+        return render_template('show_all.html', data = data)
+
+@app.route('/api/posts/view', methods=['GET'])
+def view_post():
+    query_parameters = request.args
+    title = query_parameters.get('title')
+    author = query_parameters.get('author')
+    community = query_parameters.get('community')
+    query = "SELECT * FROM posts WHERE"
+    to_filter = []
+
+    if title:
+        query += ' title=? AND'
+        to_filter.append(title)
+    if author:
+        query += ' author=? AND'
+        to_filter.append(author)
+    if community:
+        query += ' community=? AND'
+        to_filter.append(community)
+    if not (title or author or community):
+        return page_not_found(404)
+
+    query = query[:-4] + ';'
+    #return a list of dictionary stored in result
+    result = query_db(query, to_filter)
+    #since it's unique, grab the only dictionary from the list, stored in data
+    data = result[0]
+    return render_template('view_post.html', data = data)
 
 @app.route('/api/posts/new_post')
 def new_posts_form():
@@ -65,6 +99,6 @@ def new_post():
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return "<h1>404</h1><p>The resource could not be found.</p>", 404
+    return "<h1>404</h1><p>Page Not Found.</p>", 404
 
 app.run()

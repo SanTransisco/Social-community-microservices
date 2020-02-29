@@ -1,4 +1,4 @@
-# cpsc449-proj1-microservices-
+# cpsc449-proj1-microservices
 
 # How To Run:
 1. Rename 'env.txt' to '.env'

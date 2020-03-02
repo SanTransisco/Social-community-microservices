@@ -4,7 +4,7 @@
 1. Lambert Liu
 2. Shijie Feng
 3. San Tran
-4. 
+4. Kailie Chang
 
 # How To Run:
 1. Rename 'env.txt' to '.env'

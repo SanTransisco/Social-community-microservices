@@ -1,6 +1,6 @@
 # cpsc449-proj1-microservices
 
-#Authors:
+# Authors:
 1. Lambert Liu
 2. Shijie Feng
 3. San Tran

@@ -37,13 +37,18 @@ def init_db():
 
 @app.route('/', methods=['GET'])
 def home():
-    return render_template('index.html')
+    message = {
+        'status' : 200,
+        'message' : 'Welcome',
+    }
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
 @app.route('/api/posts/all', methods=['GET'])
 def all_posts():
-    all_posts = query_db('SELECT author, community, title FROM posts;')
-    #return jsonify(all_posts)
-    return render_template('show_all.html', data = all_posts)
+    data = query_db('SELECT author, community, title FROM posts ORDER BY id DESC;')
+    return jsonify(data)
 
 @app.route('/api/posts/view', methods=['GET'])
 def view_post():
@@ -51,38 +56,20 @@ def view_post():
     title = query_parameters.get('title')
     author = query_parameters.get('author')
     community = query_parameters.get('community')
-    query = "SELECT * FROM posts WHERE"
-    to_filter = []
-    if title:
-        query += ' title=? AND'
-        to_filter.append(title)
-    if author:
-        query += ' author=? AND'
-        to_filter.append(author)
-    if community:
-        query += ' community=? AND'
-        to_filter.append(community)
-    if not (title or author or community):
-        return page_not_found(404)
-
-    query = query[:-4] + ';'
-    #return a list of dictionary stored in result
-    result = query_db(query, to_filter)
-    #since it's unique, grab the only dictionary from the list, stored in data
-    data = result[0]
-    return render_template('view_post.html', data = data)
+    query = "SELECT * FROM posts WHERE title = "+ title +" AND author = "+ author + " AND community ="+ community+";"
+    data = query_db(query)
+    return jsonify(data)
 
 @app.route('/api/posts/view_community', methods=['GET'])
 def view_community():
     query_parameters = request.args
     community = query_parameters.get('community')
-    query = "SELECT * FROM posts WHERE community=?;"
+    query = "SELECT * FROM posts WHERE community=" +community + ";"
     if not community:
         return page_not_found(404)
 
-    data = query_db(query,[community])
-    print(data)
-    return render_template('view_community.html', data = data)
+    data = query_db(query)
+    return jsonify(data)
 
 
 @app.route('/api/posts/delete', methods=['GET','DELETE'])
@@ -91,46 +78,43 @@ def delete_post():
     title = query_parameters.get('title')
     author = query_parameters.get('author')
     community = query_parameters.get('community')
-    sql = "DELETE FROM posts WHERE"
-    to_filter = []
-
-    if title:
-        sql += ' title=? AND'
-        to_filter.append(title)
-    if author:
-        sql += ' author=? AND'
-        to_filter.append(author)
-    if community:
-        sql += ' community=? AND'
-        to_filter.append(community)
-    if not (title or author or community):
-        return page_not_found(404)
-
-    sql = sql[:-4] + ';'
+    sql = "DELETE FROM posts WHERE title = "+ title +" AND author = "+ author + " AND community ="+ community+";"
     db = get_db()
-    db.execute(sql,to_filter)
+    db.execute(sql)
     db.commit()
-    return all_posts()
 
-@app.route('/api/posts/new_post')
-def new_posts_form():
-    return render_template('post_form.html')
+    message = "Delete successfully from DB"
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
-@app.route('/api/posts/new_post', methods=['POST'])
+
+@app.route('/api/posts/new', methods=['GET'])
 def new_post():
-    author = request.form['Author']
-    community = request.form['Community']
-    title = request.form['Title']
-    text = request.form['Text']
-    sql = "INSERT INTO posts(title, author, community, text) VALUES ('%s','%s','%s','%s')" % (title,author,community,text)
+    query_parameters = request.args
+    title = query_parameters.get('title')
+    author = query_parameters.get('author')
+    community = query_parameters.get('community')
+    text = query_parameters.get('text')
+    sql = "INSERT INTO posts(title, author, community, text) VALUES (%s,%s,%s,%s)" % (title,author,community,text)
+    print(sql)
     with app.app_context():
         db = get_db()
         db.cursor().execute(sql)
         db.commit()
-    return render_template('index.html')
+    message = "Insert successfully"
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
 
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return "<h1>404</h1><p>Page Not Found.</p>", 404
+    message = {
+        'status' : 404,
+        'message' : '404 not found',
+    }
+    resp = jsonify(message)
+    resp.status_code = 404
+    return resp

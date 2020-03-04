@@ -1,0 +1,19 @@
+1. new post
+	ex: http://localhost:5000/api/posts/new?author='asd fas'&title='ghck sakjfgkg'&community='1'&text='today is sunny, i really like the weather. Hope i can hang out with my frineds'
+	curl http://localhost:5000/api/posts/new?author=%27asd%20fas%27&title=%27ghck%20sakjfgkg%27&community=%271%27&text=%27today%20is%20sunny,%20i%20really%20like%20the%20weather.%20Hope%20i%20can%20hang%20out%20with%20my%20frineds%27
+
+2. delet post
+	ex: http://localhost:5000/api/posts/delete?author='asd fas'&title='ghck sakjfgkg'&community='1'
+	curl http://localhost:5000/api/posts/delete?author=%27asd%20fas%27&title=%27ghck%20sakjfgkg%27&community=%271%27
+
+3. retrieve an existing post
+	ex: http://localhost:5000/api/posts/view?author='1'&title='1'&community='1'
+	curl http://localhost:5000/api/posts/view?author=%271%27&title=%271%27&community=%271%27
+
+4. view most recent posts from any communities
+	ex: http://localhost:5000/api/posts/all
+	curl http://localhost:5000/api/posts/all
+
+5. view posts from a particualr community
+	ex: http://localhost:5000/api/posts/view_community?community='CSUF-CPSC449'
+	curl http://localhost:5000/api/posts/view_community?community=%27CSUF-CPSC449%27

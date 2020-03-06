@@ -37,100 +37,100 @@ def init_db():
 
 @app.route('/', methods=['GET'])
 def home():
-    return render_template('index.html')
+    message = {
+        'status' : 200,
+        'message' : 'Welcome',
+    }
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
-@app.route('/api/posts/all', methods=['GET'])
+@app.route('/api/posts/all')
 def all_posts():
-    all_posts = query_db('SELECT author, community, title FROM posts;')
-    #return jsonify(all_posts)
-    return render_template('show_all.html', data = all_posts)
+    data = query_db('SELECT author, community, title FROM posts ORDER BY id DESC;')
+    message = {
+        'status' : 200,
+        'data' : data,
+        'message': '200 ok'
+    }
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
-@app.route('/api/posts/view', methods=['GET'])
+@app.route('/api/posts/view', methods=['POST'])
 def view_post():
-    query_parameters = request.args
-    title = query_parameters.get('title')
-    author = query_parameters.get('author')
-    community = query_parameters.get('community')
-    query = "SELECT * FROM posts WHERE"
-    to_filter = []
-    if title:
-        query += ' title=? AND'
-        to_filter.append(title)
-    if author:
-        query += ' author=? AND'
-        to_filter.append(author)
-    if community:
-        query += ' community=? AND'
-        to_filter.append(community)
-    if not (title or author or community):
-        return page_not_found(404)
+    x = request.json
+    query = "SELECT * FROM posts WHERE title = '{title}' AND author = '{author}' AND community ='{community}';"
+    query = query.format(title = x['title'], author = x['author'], community = x['community'])
+    data = query_db(query)
+    message = {
+        'status' : 200,
+        'data' : data,
+        'message': '200 ok'
+    }
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
-    query = query[:-4] + ';'
-    #return a list of dictionary stored in result
-    result = query_db(query, to_filter)
-    #since it's unique, grab the only dictionary from the list, stored in data
-    data = result[0]
-    return render_template('view_post.html', data = data)
-
-@app.route('/api/posts/view_community', methods=['GET'])
+@app.route('/api/posts/view_community', methods=['POST'])
 def view_community():
-    query_parameters = request.args
-    community = query_parameters.get('community')
-    query = "SELECT * FROM posts WHERE community=?;"
-    if not community:
-        return page_not_found(404)
+    x = request.json
+    query = "SELECT * FROM posts WHERE community ='{community}';"
+    query = query.format(community = x['community'])
+    data = query_db(query)
+    message = {
+        'status' : 200,
+        'data' : data,
+        'message': '200 ok'
+    }
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
-    data = query_db(query,[community])
-    print(data)
-    return render_template('view_community.html', data = data)
 
-
-@app.route('/api/posts/delete', methods=['GET','DELETE'])
+@app.route('/api/posts/delete', methods=['POST','DELETE'])
 def delete_post():
-    query_parameters = request.args
-    title = query_parameters.get('title')
-    author = query_parameters.get('author')
-    community = query_parameters.get('community')
-    sql = "DELETE FROM posts WHERE"
-    to_filter = []
-
-    if title:
-        sql += ' title=? AND'
-        to_filter.append(title)
-    if author:
-        sql += ' author=? AND'
-        to_filter.append(author)
-    if community:
-        sql += ' community=? AND'
-        to_filter.append(community)
-    if not (title or author or community):
-        return page_not_found(404)
-
-    sql = sql[:-4] + ';'
+    x = request.json
+    query = "DELETE FROM posts WHERE title = '{title}' AND author = '{author}' AND community ='{community}';"
+    query = query.format(title = x['title'], author = x['author'], community = x['community'])
     db = get_db()
-    db.execute(sql,to_filter)
+    db.execute(query)
     db.commit()
-    return all_posts()
+    message = {
+        'status' : 200,
+        'message' : "Delete successfully"
+    }
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
-@app.route('/api/posts/new_post')
-def new_posts_form():
-    return render_template('post_form.html')
 
-@app.route('/api/posts/new_post', methods=['POST'])
+@app.route('/api/posts/new', methods=['POST'])
 def new_post():
-    author = request.form['Author']
-    community = request.form['Community']
-    title = request.form['Title']
-    text = request.form['Text']
-    sql = "INSERT INTO posts(title, author, community, text) VALUES ('%s','%s','%s','%s')" % (title,author,community,text)
+    x = request.json
+    query = "INSERT INTO posts(title, author, community, text) VALUES ('{title}','{author}','{community}','{text}')"
+    query = query.format(title = x['title'], author = x['author'], community = x['community'], text = x['text'])
     with app.app_context():
         db = get_db()
-        db.cursor().execute(sql)
+        db.cursor().execute(query)
         db.commit()
-    return render_template('index.html')
+
+    message = {
+        'status' : 200,
+        'message' : "Insert successfully"
+        }
+    resp = jsonify(message)
+    resp.status_code = 200
+    return resp
 
 
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return "<h1>404</h1><p>Page Not Found.</p>", 404
+    message = {
+        'status' : 404,
+        'message' : '404 not found',
+    }
+    resp = jsonify(message)
+    resp.status_code = 404
+    return resp

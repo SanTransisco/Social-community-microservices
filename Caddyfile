@@ -2,6 +2,6 @@ localhost:{$PORT}
 root {%SITE_ROOT%}
 
 
-proxy /api/posts  127.0.0.1:5000
-proxy /votes    127.0.0.1:5100
+proxy /api/posts/  127.0.0.1:5000
+proxy /api/votes/  127.0.0.1:5100
 

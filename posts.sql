@@ -12,4 +12,5 @@ CREATE TABLE posts (
     UNIQUE(community, author, title)
 );
 INSERT INTO posts(title, author, community, text) VALUES('Sample post','Lambert Liu','CSUF-CPSC449','This is a sampe from defualt sql.');
+INSERT INTO posts(title, author, community, text) VALUES('1','1','1','1');
 COMMIT;

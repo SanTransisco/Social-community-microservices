@@ -1,8 +1,5 @@
 import requests, json
-'''url = 'https://www.googleapis.com/qpxExpress/v1/trips/search?key=mykeyhere'
-payload = open("request.json")
-headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
-r = requests.post(url, data=payload, headers=headers)'''
+
 def view_index():
      url = 'http://127.0.0.1:5000/'
      r = requests.get(url)
@@ -37,6 +34,14 @@ def new_post():
     r = requests.post(url, json=data, headers=headers)
     return r.text
 
+def new_post_w_url():
+    url = 'http://127.0.0.1:5000/api/posts/new'
+    with open("json/new_post _w_url.json", "r") as f:
+        data = json.load(f)
+    headers = {'content-type': 'application/json'}
+    r = requests.post(url, json=data, headers=headers)
+    return r.text
+
 def delete_post():
     url = 'http://127.0.0.1:5000/api/posts/delete'
     with open("json/delete_post.json", "r") as f:
@@ -46,7 +51,35 @@ def delete_post():
     return r.text
 
 def main():
-    print(view_by_community())
+    print("---------------------------------------------------------\n")
+    print("POSTS\n")
+    print("---------------------------------------------------------\n")
+    print("1. Create a new post with no link\n")
+    print(new_post() + '\n')
+    print("---------------------------------------------------------\n")
+    print("1-1. Create a new post with link\n")
+    print(new_post_w_url() + '\n')
+    print("---------------------------------------------------------\n")
+    print("1-2. Check if created\n")
+    print(view_all() + '\n')
+    print("---------------------------------------------------------\n")
+    print("2. Retrieve an existing post\n")
+    print(view_post() + '\n')
+    print("---------------------------------------------------------\n")
+    print("3. List the n most recent posts to any community\n")
+    print(view_all() + '\n')
+    print("---------------------------------------------------------\n")
+    print("4. List the n most recent posts to a particular community\n")
+    print(view_by_community() + '\n')
+    print("---------------------------------------------------------\n")
+    print("5. Delete an existing post\n")
+    print(delete_post() + '\n')
+    print("---------------------------------------------------------\n")
+    print("5-1. Check if deleted\n")
+    print(view_all() + '\n')
+    print("---------------------------------------------------------\n")
 
 
-main()
+
+if __name__=="__main__":
+    main()

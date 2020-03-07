@@ -8,9 +8,10 @@ CREATE TABLE posts (
     title VARCHAR,
     author VARCHAR,
     community VARCHAR,
-    text VARCHAR,       
+    text VARCHAR,
+    url VARCHAR DEFAULT NULL,
+    time DATETIME DEFAULT CURRENT_TIMESTAMP,       
     UNIQUE(community, author, title)
 );
-INSERT INTO posts(title, author, community, text) VALUES('Sample post','Lambert Liu','CSUF-CPSC449','This is a sampe from defualt sql.');
-INSERT INTO posts(title, author, community, text) VALUES('1','1','1','1');
+INSERT INTO posts(title, author, community, url, text) VALUES('Sample post','Lambert Liu','CSUF-Admission', 'https://sites.google.com/view/cpsc-449','This is a sampe from defualt sql.');
 COMMIT;

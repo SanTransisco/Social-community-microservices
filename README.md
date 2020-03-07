@@ -6,10 +6,19 @@
 3. San Tran
 4. Kailie Chang
 
-# How To Run:
+# How To Run using flask:
 1. Rename 'env.txt' to '.env'
-2. flask init
-3. flask run
+2. Open 1st terminal: 
+    $ flask init
+    $ flask run
+3. Open 2rd terminal:
+    $ python3 test.py
+
+# Managing processes & Load Balancing
+1. Open 1st terminal: (make sure closed flask run terminal)
+    $ foreman start -c
+2. Open 2rd terminal: 
+    $ ulimit -n 8192 && caddy
 
 # Functionalities 
 ## votes

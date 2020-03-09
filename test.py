@@ -6,12 +6,12 @@ def view_index():
      return r.text
 
 def view_all():
-    url = 'http://127.0.0.1:5000/api/posts/all'
+    url = 'http://127.0.0.1:5000/posts/all'
     r = requests.get(url)
     return r.text
 
 def view_post():
-    url = 'http://127.0.0.1:5000/api/posts/view'
+    url = 'http://127.0.0.1:5000/posts/view'
     with open("json/view_post.json", "r") as f:
         data = json.load(f)
     headers = {'content-type': 'application/json'}
@@ -19,7 +19,7 @@ def view_post():
     return r.text
 
 def view_by_community():
-    url = 'http://127.0.0.1:5000/api/posts/view_community'
+    url = 'http://127.0.0.1:5000/posts/view_community'
     with open("json/view_by_community.json", "r") as f:
         data = json.load(f)
     headers = {'content-type': 'application/json'}
@@ -27,7 +27,7 @@ def view_by_community():
     return r.text
 
 def new_post():
-    url = 'http://127.0.0.1:5000/api/posts/new'
+    url = 'http://127.0.0.1:5000/posts/new'
     with open("json/new_post.json", "r") as f:
         data = json.load(f)
     headers = {'content-type': 'application/json'}
@@ -35,7 +35,7 @@ def new_post():
     return r.text
 
 def new_post_w_url():
-    url = 'http://127.0.0.1:5000/api/posts/new'
+    url = 'http://127.0.0.1:5000/posts/new'
     with open("json/new_post _w_url.json", "r") as f:
         data = json.load(f)
     headers = {'content-type': 'application/json'}
@@ -43,7 +43,7 @@ def new_post_w_url():
     return r.text
 
 def delete_post():
-    url = 'http://127.0.0.1:5000/api/posts/delete'
+    url = 'http://127.0.0.1:5000/posts/delete'
     with open("json/delete_post.json", "r") as f:
         data = json.load(f)
     headers = {'content-type': 'application/json'}

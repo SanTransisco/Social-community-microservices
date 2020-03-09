@@ -15,11 +15,23 @@
     - $ python3 test.py
 
 # Managing processes & Load Balancing
-1. Open 1st terminal: (make sure closed flask run terminal)
-    - $ foreman start -c
-2. Open 2rd terminal: 
-    - $ ulimit -n 8192 && caddy
-
+1. If posts.db does not exists.
+In the terminal
+```
+$ flask init
+```
+2.Then run foreman
+```
+$ foreman start -c
+```
+3. Open 2rd terminal: 
+```
+$ ulimit -n 8192 && caddy
+```
+4. Run the test script
+```
+$ python3 test.py
+```
 # Functionalities 
 ## votes
 1. create a new post

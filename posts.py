@@ -139,7 +139,7 @@ def view_all(_n_posts):
     try:
         query = "SELECT * FROM posts ORDER BY time LIMIT {post_num};"
 
-        query = query.format(community =_community, post_num = _n_posts)
+        query = query.format(post_num = _n_posts)
         data = query_db(query)
 
         message = {

@@ -39,13 +39,14 @@ def init_db():
 
 @app.route('/votes/upvote/<post_id>', methods=['POST'])
 def upvote_post(post_id):
-    all_posts = query_db('SELECT upvote FROM posts WHERE id = '+ post_id +';')
+    all_posts = query_db('SELECT upvote, net_score FROM posts WHERE id = '+ post_id +';')
 
     if(len(all_posts) is 0):
         return page_not_found(404)
     else:
-        update_upvote_query = "UPDATE posts SET upvote = {upvote_new} WHERE id = {post_id};"
-        update_upvote_query=update_upvote_query.format(upvote_new = all_posts[0]['upvote']+1, post_id = post_id)
+        update_upvote_query = "UPDATE posts SET upvote = {upvote_new}, net_score = {net_score_new} WHERE id = {post_id};"
+        update_upvote_query=update_upvote_query.format(upvote_new = all_posts[0]['upvote']+1,
+                                                        net_score_new = all_posts[0]['net_score'] + 1, post_id = post_id)
         with app.app_context():
             db = get_db()
             db.cursor().execute(update_upvote_query)
@@ -64,12 +65,13 @@ def upvote_post(post_id):
 
 @app.route('/votes/downvote/<post_id>', methods=['POST'])
 def downvote_post(post_id):
-    all_posts = query_db('SELECT downvote FROM posts WHERE id = '+ post_id +';')
+    all_posts = query_db('SELECT downvote, net_score FROM posts WHERE id = '+ post_id +';')
     if(len(all_posts) is 0):
         return page_not_found(404)
     else:
-        update_downvote_query = "UPDATE posts SET downvote = {downvote_new} WHERE id = {post_id};"
-        update_upvote_query.format(upvote_new = all_posts[0]['downvote']+1, post_id = post_id)
+        update_downvote_query = "UPDATE posts SET downvote = {downvote_new}, net_score = {net_score_new} WHERE id = {post_id};"
+        update_downvote_query=update_downvote_query.format(downvote_new = all_posts[0]['downvote']+1,
+                                                            net_score_new = all_posts[0]['net_score'] - 1, post_id = post_id)
         with app.app_context():
             db = get_db()
             db.cursor().execute(update_downvote_query)
@@ -84,6 +86,92 @@ def downvote_post(post_id):
         resp.status_code = 200
 
         return resp
+
+# reports the number of upvotes and downvotes for a post
+@app.route('/votes/show_votes/<post_id>', methods=['GET'])
+def show_votes(post_id):
+    all_posts = query_db('SELECT upvote, downvote FROM posts WHERE id = '+ post_id +';')
+
+    if(len(all_posts) is 0):
+        return page_not_found(404)
+    else:
+        print(all_posts[0].keys())
+        message = {
+            'status' : 200,
+            'total upvotes' : (int(all_posts[0]['upvote'])),
+            'total downvotes': (int(all_posts[0]['downvote'])),
+            'message' : 'Post: ' + post_id + ' votes reported'
+        }
+        resp = jsonify(message)
+        resp.status_code = 200
+
+        return resp
+
+# list the n top-scoring posts to any community
+@app.route('/votes/all/top/<n_posts>', methods=['GET'])
+def top_posts(n_posts):
+    try:
+        query = "SELECT * FROM posts ORDER BY net_score DESC LIMIT {post_num};"
+
+        query = query.format(post_num = n_posts)
+        data = query_db(query)
+
+        message = {
+            'status' : 200,
+            'data' : data,
+            'message': 'These are the top scoring posts'
+        }
+        resp = jsonify(message)
+        resp.status_code = 200
+
+    except sqlite3.Error as e:
+        message = {
+            'status' : 400,
+            'message' : "Bad Request, Posts not found",
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+
+    return resp
+
+# given a list of post identifiers, return the list sorted by score
+@app.route('/votes/list/top', methods=['POST'])
+def list():
+    try:
+        x = request.json
+
+        array = x['post']
+        query = "SELECT id FROM posts WHERE "
+
+        firstTime = 0
+        for post in array:
+            if firstTime == 0:
+                query = query + "id = " + str(post)
+                firstTime = 1
+            else:
+                query = query + " OR id = " + str(post)
+
+        query = query + " ORDER BY net_score;"
+        print(query)
+        data = query_db(query)
+
+        message = {
+            'status' : 200,
+            'data' : data,
+            'message': 'These are the top scoring posts from the list'
+        }
+        resp = jsonify(message)
+        resp.status_code = 200
+
+    except sqlite3.Error as e:
+        message = {
+            'status' : 400,
+            'message' : "Bad Request, Posts not found" + str(e),
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+
+    return resp
 
 
 @app.errorhandler(404)

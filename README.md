@@ -11,13 +11,21 @@
 - San and Kailie own development and testing of the voting microservice
 - All group member own the procfile, WSGI server, load balancer, and Tuffix deployment
 
+# Before ALL TYPE OF running scripts:
+PLEASE MAKE SURE OPEN TERMINAL AND RUN:
+    - $ flask init
+    
 # How To Run using flask:
 1. Rename 'env.txt' to '.env'
 2. Open 1st terminal: 
-    - $ flask init
     - $ flask run
 3. Open 2rd terminal:
     - $ python3 test.py
+4. Test result will output on terminal, also, output json will be stored in output_json folder
+
+# Running via gunicorn
+1. Open terminal: (make sure cloded flask run terminal)
+    - $ gunicorn3 -b localhost:5000 -w 3 api:app
 
 # Managing processes & Load Balancing
 1. Open 1st terminal: (make sure closed flask run terminal)

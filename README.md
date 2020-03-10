@@ -6,6 +6,11 @@
 3. San Tran
 4. Kailie Chang
 
+# Contributions:
+- Lambert and Shijie own development and testing of the posting microservice
+- San and Kailie own development and testing of the voting microservice
+- All group member own the procfile, WSGI server, load balancer, and Tuffix deployment
+
 # How To Run using flask:
 1. Rename 'env.txt' to '.env'
 2. Open 1st terminal: 
@@ -21,10 +26,16 @@
     - $ ulimit -n 8192 && caddy
 
 # Functionalities 
-## votes
+## Posting microservices
 1. create a new post
 2. delete an existing post
 3. retrieve an existing post
 4. list all posts from all communities
 5. list all posts from a particular community
 
+## Voting microsevice
+1. Upvote a post
+2. Downvote a post
+3. Report the number of upvotes and downvotes for a post
+4. LIst the n top-scoring posts to any community
+5. Given a list of post identifiers, return the list sorted by score

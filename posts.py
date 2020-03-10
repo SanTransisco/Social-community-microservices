@@ -34,78 +34,62 @@ def init_db():
             db.cursor().executescript(f.read())
         db.commit()
 
-@app.route('/', methods=['GET'])
-def home():
-    message = {
-        'status' : 200,
-        'message' : 'Welcome to microservices',
-        '1. POSTS' : '/api/posts',
-        '2. VOTES' : '/api/votes'
-    }
-    resp = jsonify(message)
-    resp.status_code = 200
-    return resp
 
-@app.route('/posts/', methods=['GET'])
-def post_path():
-    message = {
-        'status' : 200,
-        'message' : '200 ok',
-        '1. Create a new post' : '/api/posts/new_post',
-        '2. Delete an existing post' : '/api/posts/delete_post',
-        '3. Retrieve an existing post': '/api/posts/view',
-        '4. List the n most recent posts to a particular community': '/api/posts/view_community',
-        '5. List the n most recent posts to any community': '/api/posts/all'
-    }
-    resp = jsonify(message)
-    resp.status_code = 200
-    return resp
+@app.route('/posts/<_community>/post/<_post_id>', methods=['GET', 'DELETE'])
+def view_post(_community,_post_id):
+    if request.method== 'GET':
+        try:
+            query = "SELECT id, title, author, community, upvote, downvote, net_score, time FROM posts WHERE id = {post_id} AND community = '{community}';"
+            query = query.format(post_id = _post_id, community = _community)
+            data = query_db(query)
+            if(len(data) == 0 ):
+                message = {
+                    'status' : 400,
+                    'message' : "Bad Request, Post not found "
+                    }
+                resp = jsonify(message)
+                resp.status_code = 400
+            else:
+                message = {
+                    'status' : 200,
+                    'data' : data,
+                    'message': '200 ok'
+                }
+                resp = jsonify(message)
+                resp.status_code = 200
 
-@app.route('/posts/all')
-def all_posts():
-    try:
-        data = query_db('SELECT author, community, title, time FROM posts ORDER BY id DESC;')
-        message = {
-            'status' : 200,
-            'data' : data,
-            'message': '200 ok'
-        }
-        resp = jsonify(message)
-        resp.status_code = 200
+        except sqlite3.Error as e:
+            message = {
+                'status' : 400,
+                'message' : "Bad Request, Post not found " + str(e) + " " + _community
+                }
+            resp = jsonify(message)
+            resp.status_code = 400
 
-    except sqlite3.Error as e:
-        message = {
-            'status' : 400,
-            'message' : "Bad Request, fail to select sql"
+        return resp
+    elif request.method == 'DELETE':
+        try:
+            query = "DELETE FROM posts WHERE id = {post_id};"
+            query = query.format(post_id = _post_id)
+            db = get_db()
+            db.execute(query)
+            db.commit()
+            message = {
+                'status' : 200,
+                'message' : "Delete successfully"
             }
-        resp = jsonify(message)
-        resp.status_code = 400
+            resp = jsonify(message)
+            resp.status_code = 200
 
-    return resp
+        except sqlite3.Error as e:
+            message = {
+                'status' : 400,
+                'message' : "Bad Request, fail to delete sql"
+                }
+            resp = jsonify(message)
+            resp.status_code = 400
 
-@app.route('/posts/view/<post_id>', methods=['GET'])
-def view_post(post_id):
-    try:
-        query = "SELECT * FROM posts WHERE id = {post_id};"
-        query = query.format(post_id = post_id)
-        data = query_db(query)
-        message = {
-            'status' : 200,
-            'data' : data,
-            'message': '200 ok'
-        }
-        resp = jsonify(message)
-        resp.status_code = 200
-
-    except sqlite3.Error as e:
-        message = {
-            'status' : 400,
-            'message' : "Bad Request, Post not found"
-            }
-        resp = jsonify(message)
-        resp.status_code = 400
-
-    return resp
+        return resp
 
 @app.route('/posts/<_community>/recent/<_n_posts>', methods=['GET'])
 def view_community(_community, _n_posts):
@@ -159,35 +143,8 @@ def view_all(_n_posts):
 
     return resp
 
-@app.route('/posts/delete', methods=['POST','DELETE'])
-def delete_post():
-    try:
-        x = request.json
-        query = "DELETE FROM posts WHERE title = '{title}' AND author = '{author}' AND community ='{community}';"
-        query = query.format(title = x['title'], author = x['author'], community = x['community'])
-        db = get_db()
-        db.execute(query)
-        db.commit()
-        message = {
-            'status' : 200,
-            'message' : "Delete successfully"
-        }
-        resp = jsonify(message)
-        resp.status_code = 200
-
-    except sqlite3.Error as e:
-        message = {
-            'status' : 400,
-            'message' : "Bad Request, fail to delete sql"
-            }
-        resp = jsonify(message)
-        resp.status_code = 400
-
-    return resp
-
-
-@app.route('/posts/new', methods=['POST'])
-def new_post():
+@app.route('/posts/<_community>/new', methods=['POST'])
+def new_post(_community):
     try:
         x = request.json
 
@@ -202,17 +159,23 @@ def new_post():
             db = get_db()
             db.cursor().execute(query)
             db.commit()
+            query = "SELECT id , community FROM posts WHERE title = '{title}' AND author = '{author}' AND community = '{community}' ORDER BY time DESC LIMIT 1"
+            query = query.format(title = x['title'], author = x['author'], community = x['community'])
+            data = query_db(query)
+            print( )
+            url = "/posts/" +data[0]['community'] +"/post/"+ str(data[0]['id'])
         message = {
-            'status' : 200,
+            'status' : 201,
+            'url' : url,
             'message' : "Insert successfully"
             }
         resp = jsonify(message)
-        resp.status_code = 200
+        resp.status_code = 201
 
     except sqlite3.Error as e:
         message = {
             'status' : 400,
-            'message' : "Bad Request, fail to insert sql"
+            'message' : "Bad Request, fail to insert sql " + str(e)
             }
         resp = jsonify(message)
         resp.status_code = 400

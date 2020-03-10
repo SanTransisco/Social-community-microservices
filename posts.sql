@@ -14,7 +14,6 @@ CREATE TABLE posts (
     downvote INTEGER DEFAULT 0,
     net_score INTEGER DEFAULT 0,
     time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(community, author, title)
+    UNIQUE(community, author, title, time)
 );
-INSERT INTO posts(title, author, community, url, text) VALUES('Sample post','Lambert Liu','CSUF-Admission', 'https://sites.google.com/view/cpsc-449','This is a sampe from defualt sql.');
 COMMIT;

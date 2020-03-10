@@ -12,7 +12,7 @@
 - All group member own the procfile, WSGI server, load balancer, and Tuffix deployment
 
 # Before ALL TYPE OF running scripts:
-PLEASE MAKE SURE OPEN TERMINAL AND RUN:
+## PLEASE MAKE SURE OPEN TERMINAL AND RUN:
     - $ flask init
     
 # How To Run using flask:

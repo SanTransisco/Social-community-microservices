@@ -11,7 +11,7 @@
 - San and Kailie own development and testing of the voting microservice
 - All group member own the procfile, WSGI server, load balancer, and Tuffix deployment
 
-# Before ALL TYPE OF running scripts:
+# Before running ALL TYPES OF scripts:
 ## PLEASE MAKE SURE OPEN TERMINAL AND RUN:
     - $ flask init
     

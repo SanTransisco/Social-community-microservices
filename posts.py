@@ -83,12 +83,11 @@ def all_posts():
 
     return resp
 
-@app.route('/posts/view', methods=['POST'])
-def view_post():
+@app.route('/posts/view/<post_id>', methods=['GET'])
+def view_post(post_id):
     try:
-        x = request.json
-        query = "SELECT * FROM posts WHERE title = '{title}' AND author = '{author}' AND community ='{community}';"
-        query = query.format(title = x['title'], author = x['author'], community = x['community'])
+        query = "SELECT * FROM posts WHERE id = {post_id};"
+        query = query.format(post_id = post_id)
         data = query_db(query)
         message = {
             'status' : 200,
@@ -111,7 +110,7 @@ def view_post():
 @app.route('/posts/<_community>/recent/<_n_posts>', methods=['GET'])
 def view_community(_community, _n_posts):
     try:
-        query = "SELECT * FROM posts WHERE community ='{community}' ORDER BY time LIMIT {post_num};"
+        query = "SELECT id, title, author, community, upvote, downvote, net_score, time FROM posts WHERE community ='{community}' ORDER BY time LIMIT {post_num};"
 
         query = query.format(community =_community, post_num = _n_posts)
         data = query_db(query)
@@ -137,9 +136,9 @@ def view_community(_community, _n_posts):
 @app.route('/posts/all/recent/<_n_posts>', methods=['GET'])
 def view_all(_n_posts):
     try:
-        query = "SELECT * FROM posts ORDER BY time LIMIT {post_num};"
+        query = "SELECT id, title, author, community, upvote, downvote, net_score, time FROM posts ORDER BY time LIMIT {post_num};"
 
-        query = query.format(community =_community, post_num = _n_posts)
+        query = query.format(post_num = _n_posts)
         data = query_db(query)
 
         message = {

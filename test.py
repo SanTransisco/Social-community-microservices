@@ -1,27 +1,18 @@
 import requests, json
 
-def view_index():
-     url = 'http://127.0.0.1:5000/'
-     r = requests.get(url)
-     return r.text
-
 def view_all():
-    url = 'http://127.0.0.1:5000/posts/all'
+    url = 'http://127.0.0.1:5000/posts/all/recent/1'
     r = requests.get(url)
     return r.text
 
 def view_post():
-    url = 'http://127.0.0.1:5000/posts/view'
-    with open("json/view_post.json", "r") as f:
-        data = json.load(f)
+    url = 'http://127.0.0.1:5000/posts/view/1'
     headers = {'content-type': 'application/json'}
     r = requests.post(url, json=data, headers=headers)
     return r.text
 
 def view_by_community():
-    url = 'http://127.0.0.1:5000/posts/view_community'
-    with open("json/view_by_community.json", "r") as f:
-        data = json.load(f)
+    url = 'http://127.0.0.1:5000/posts/CSUF-Admission/recent/1'
     headers = {'content-type': 'application/json'}
     r = requests.post(url, json=data, headers=headers)
     return r.text

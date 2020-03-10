@@ -12,6 +12,7 @@ CREATE TABLE posts (
     url VARCHAR DEFAULT NULL,
     upvote INTEGER DEFAULT 0,
     downvote INTEGER DEFAULT 0,
+    net_score INTEGER DEFAULT 0,
     time DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(community, author, title)
 );

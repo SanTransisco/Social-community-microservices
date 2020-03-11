@@ -11,23 +11,27 @@
 - San and Kailie own development and testing of the voting microservice
 - All group member own the procfile, WSGI server, load balancer, and Tuffix deployment
 
-# Managing processes & Load Balancing
-1. If posts.db does not exists.
+# Deploying multiple instances of the posts and voting microservice using load-balancing
+1. Rename `env.txt` to `.env` to setup the deployment environment
+2. If posts.db does not exists.
 In the terminal
 ```
 $ flask init
 ```
-2.Then run foreman
+3.Then run foreman
 ```
 $ foreman start -c
 ```
-3. Open 2rd terminal:
+4. Open 2rd terminal:
 ```
 $ ulimit -n 8192 && caddy
 ```
-4. Run the test script
+5. Run the test script in a 3rd Terminal
 
-**Before running the test script make sure the post.db has not been modified yet**
+**Before running the test script make sure the posts.db has not been modified yet**
+
+If posts.db has been modified, delete it and start from step 1 if you want to run the
+test script.
 ```
 $ python3 test.py
 ```
@@ -36,14 +40,6 @@ If you wish to see the json data type
 ```
 $ python3 test.py -v
 ```
-
-# Running via gunicorn
-1. Open terminal: 
-    - $ gunicorn3 -b localhost:5000 -w 3 posts:app
-
-# Running via flask
-1. Open terminal: 
-    - $ flask run
 
 # Functionalities
 ## post

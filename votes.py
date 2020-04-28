@@ -1,49 +1,38 @@
 import flask
+from redis import Redis
 from flask import  g, jsonify, request
-import sqlite3
+import json
 
 app = flask.Flask(__name__)
+#This is a regular SET that just stores all the upvote/downvote info
+#Key: POST:ID
+#VALUE: VOTE INFO
+Posts_Store = Redis(db =1)
 
-def make_dicts(cursor, row):
-    return dict((cursor.description[idx][0], value)
-                for idx, value in enumerate(row))
+#THIS IS A SORTED SET
+#You sort things using their scores
+# MECHANICAL_KEYBOARDS: {post1 : 100, post3:76,post2:6}
+# BTS: {post4 : 200, post6:150,post5:50}
+# ALL: {post1:200, post3:150,post2:50}
+#So you can sort
+Top = Redis(db=2)
 
-def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = g._database = sqlite3.connect('posts.db')
-        db.row_factory = make_dicts
-    return db
 
 @app.teardown_appcontext
 def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
-
-def query_db(query, args=(), one=False):
-    cur = get_db().execute(query, args)
-    rv = cur.fetchall()
-    #We need to commit the changes to the database if we want to commit something
-    get_db().commit()
-    cur.close()
-    return (rv[0] if rv else None) if one else rv
+    print("We are shutting down")
 
 @app.cli.command('init')
 def init_db():
     with app.app_context():
-        db = get_db()
-        with app.open_resource('posts.sql', mode='r') as f:
-            db.cursor().executescript(f.read())
-        db.commit()
 
 @app.route('/votes/<_community>/post/<_post_id>/upvote', methods=['PATCH'])
 def upvote_post(_community,_post_id):
     try:
-        query = "SELECT upvote, net_score FROM posts WHERE id = {post_id} AND community = '{community}'".format(post_id = _post_id, community = _community)
-        all_posts = query_db(query)
-
-        if(len(all_posts) is 0):
+        #NEW STUFF
+        response = Posts_Store.get(_post_id)
+        #NEW STUFF
+        if(type(response) is NoneType):
             message = {
                 'status' : 404,
                 'message' : "Post Not Found"
@@ -51,37 +40,44 @@ def upvote_post(_community,_post_id):
             resp = jsonify(message)
             resp.status_code = 404
         else:
-            update_upvote_query = "UPDATE posts SET upvote = {upvote_new}, net_score = {net_score_new} WHERE id = {post_id};"
-            update_upvote_query=update_upvote_query.format(upvote_new = all_posts[0]['upvote']+1,
-                                                            net_score_new = all_posts[0]['net_score'] + 1, post_id = _post_id)
-            with app.app_context():
-                db = get_db()
-                db.cursor().execute(update_upvote_query)
-                db.commit()
+            dict = json.loads(response)
+
+            dict["Upvotes"]+=1
+            dict["Total_Score"]+=1
+
             message = {
                 'status' : 200,
-                'upvote' : (int(all_posts[0]['upvote'])+1),
+                'upvote' : dict["Upvotes"],
                 'message' : 'Post :' +_post_id + ' has been upvoted',
             }
+            res_string = json.dumps(dict)
+
+            Posts_Store.mset({_post_id:res_string})
+
+            #MECHANICAL_KEYBOARDS {011021 : 200}
+            Top.zadd(_community,{_post_id : dict["Total_Score"]})
+
+            Top.zadd("All",{_post_id : dict["Total_Score"]})
+
             resp = jsonify(message)
             resp.status_code = 200
-    except sqlite3.Error as e:
+    except redis.exceptions as e:
         message = {
             'status' : 400,
             'message' : "Bad Request"
             }
         resp = jsonify(message)
         resp.status_code = 400
+
     return resp
 
 
 @app.route('/votes/<_community>/post/<_post_id>/downvote', methods=['PATCH'])
 def downvote_post(_community,_post_id):
     try:
-        query = "SELECT downvote, net_score FROM posts WHERE id = {post_id} AND community = '{community}'".format(post_id = _post_id, community = _community)
-        all_posts = query_db(query)
-
-        if(len(all_posts) is 0):
+        response = Posts_Store.get(_post_id)
+        #NEW STUFF
+        if(type(response) is NoneType):
             message = {
                 'status' : 404,
                 'message' : "Post Not Found"
@@ -89,22 +85,24 @@ def downvote_post(_community,_post_id):
             resp = jsonify(message)
             resp.status_code = 404
         else:
-            update_downvote_query = "UPDATE posts SET downvote = {downvote_new}, net_score = {net_score_new} WHERE id = {post_id};"
-            update_downvote_query=update_downvote_query.format(downvote_new = all_posts[0]['downvote']+1,
-                                                                net_score_new = all_posts[0]['net_score'] - 1, post_id = _post_id)
-            with app.app_context():
-                db = get_db()
-                db.cursor().execute(update_downvote_query)
-                db.commit()
+            dict = json.loads(response)
 
+            dict["Downvotes"]+=1
+            dict["Total_Score"]-=1
             message = {
                 'status' : 200,
                 'downvote' : (int(all_posts[0]['downvote'])+1),
                 'message' : 'Post :' +_post_id + ' has been downvoted',
             }
+            res_string = json.dumps(dict)
+            Posts_Store.mset({_post_id:res_string})
+
+            Top.zadd(_community,{_post_id : dict["Total_Score"]})
+            Top.zadd("All",{_post_id : dict["Total_Score"]})
+
             resp = jsonify(message)
             resp.status_code = 200
-    except sqlite3.Error as e:
+    except redis.exceptions as e:
         message = {
             'status' : 400,
             'message' : "Bad Request, fail to insert sql " + str(e)
@@ -117,8 +115,6 @@ def downvote_post(_community,_post_id):
 @app.route('/votes/<_community>/post/<_post_id>/score', methods=['GET'])
 def show_votes(_community, _post_id):
     try:
-        query = "SELECT upvote, downvote FROM posts WHERE id = {post_id} AND community = '{community}'".format(post_id = _post_id, community = _community)
-        all_posts = query_db(query)
 
         if(len(all_posts) is 0):
             message = {
@@ -138,7 +134,7 @@ def show_votes(_community, _post_id):
             resp = jsonify(message)
             resp.status_code = 200
 
-    except sqlite3.Error as e:
+    except redis.exceptions as e:
         message = {
             'status' : 400,
             'message' : "Bad Request, fail to insert sql " + str(e)
@@ -151,14 +147,10 @@ def show_votes(_community, _post_id):
 @app.route('/votes/all/top/<n_posts>', methods=['GET'])
 def top_posts(n_posts):
     try:
-        query = "SELECT id, title, author, community, upvote, downvote, net_score, time FROM posts ORDER BY net_score DESC LIMIT {post_num};"
-
-        query = query.format(post_num = n_posts)
-        data = query_db(query)
-
+        result=Top.zrevrange("All",0,int(n_posts)-1)
         message = {
             'status' : 200,
-            'data' : data,
+            'data' : result,
             'message': 'These are the top scoring posts'
         }
         resp = jsonify(message)
@@ -174,6 +166,28 @@ def top_posts(n_posts):
 
     return resp
 
+@app.route('/votes/<_community>/top/<n_posts>', methods=['GET'])
+def top_posts(_community, n_posts):
+    try:
+        result=Top.zrevrange(_community,0,int(n_posts)-1)
+        message = {
+            'status' : 200,
+            'data' : result,
+            'message': 'These are the top scoring posts'
+        }
+        resp = jsonify(message)
+        resp.status_code = 200
+
+    except sqlite3.Error as e:
+        message = {
+            'status' : 400,
+            'message' : "Bad Request, Posts not found",
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+
+    return resp
+'''
 # given a list of post identifiers, return the list sorted by score
 @app.route('/votes/list/top', methods=['GET'])
 def list():
@@ -212,7 +226,7 @@ def list():
         resp.status_code = 400
 
     return resp
-
+'''
 
 @app.errorhandler(404)
 def page_not_found(e):

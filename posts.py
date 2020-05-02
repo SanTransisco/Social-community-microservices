@@ -94,9 +94,9 @@ def view_community(_community, _n_posts):
         response = sorted(response['Items'], key=itemgetter('date'), reverse=True)
         data = list()
         limit_count = 0
-        for i in response['Items']:
+        for i in response:
             if i['community'] == _community:
-                if limit_count < _n_posts:
+                if limit_count < int(_n_posts):
                     data.append(i)
                     limit_count += 1
         data = json.dumps(data)
@@ -104,7 +104,7 @@ def view_community(_community, _n_posts):
             'status' : 200,
             'data' : data,
             'message': '200 ok'
-        }
+            }
         resp = jsonify(message)
         resp.status_code = 200
 
@@ -202,7 +202,7 @@ def new_post(_community):
     except:
         message = {
             'status' : 400,
-            'message' : "Bad Request, fail to insert sql " + str(e)
+            'message' : "Bad Request, fail to insert sql"
             }
         resp = jsonify(message)
         resp.status_code = 400

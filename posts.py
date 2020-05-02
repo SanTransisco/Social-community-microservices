@@ -91,14 +91,14 @@ def view_community(_community, _n_posts):
         dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
         table = dynamodb.Table('posts')
         response = table.scan()
-	response = sorted(response['Items'], key=itemgetter('date'), reverse=True);
-        data = list();
-        limit_count = 0;
+        response = sorted(response['Items'], key=itemgetter('date'), reverse=True)
+        data = list()
+        limit_count = 0
         for i in response['Items']:
             if i['community'] == _community:
                 if limit_count < _n_posts:
                     data.append(i)
-                    limit_count += 1;
+                    limit_count += 1
         data = json.dumps(data)
         message = {
             'status' : 200,
@@ -124,22 +124,21 @@ def view_all(_n_posts):
         dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
         table = dynamodb.Table('posts')
         response = table.scan()
-	response = sorted(response['Items'], key=itemgetter('date'), reverse=True);
-        data = list();
-        limit_count = 0;
+        response = sorted(response['Items'], key=itemgetter('date'), reverse=True)
+        data = list()
+        limit_count = 0
         for i in response:
-            if limit_count < _n_posts:
+            if limit_count < int(_n_posts):
                 data.append(i)
-                limit_count += 1;
+                limit_count += 1
         data = json.dumps(data)
         message = {
             'status' : 200,
             'data' : data,
             'message': '200 ok'
-        }
+            }
         resp = jsonify(message)
         resp.status_code = 200
-
     except:
         message = {
             'status' : 400,
@@ -157,19 +156,19 @@ def new_post(_community):
         table = dynamodb.Table('posts')
         x = request.json
         post_id = uuid.uuid4()
-	date = str(datetime.now())
+        date = str(datetime.now())
         if'url' in x:
             table.put_item(
                 Item={
                      'post_id': str(post_id),
                      'community': x['community'],
-		     'author': x['author'],
-		     'title': x['title'],
-                      'url': x['url'],
-                      'text': x['text'],
-		      'date': date
+		             'author': x['author'],
+		             'title': x['title'],
+                     'url': x['url'],
+                     'text': x['text'],
+		             'date': date
 
-                     
+
                  }
             )
         else:
@@ -178,8 +177,8 @@ def new_post(_community):
                      'post_id': str(post_id),
                      'community': x['community'],
                      'author': x['author'],
-	             'title': x['title'],
-                      'date': date
+	                 'title': x['title'],
+                     'date': date
                  }
             )
 
@@ -189,7 +188,7 @@ def new_post(_community):
             response = table.scan()
             data = dict();
             for i in response['Items']:
-                if i['community'] == x['community'] and i['info']['title'] == x['title'] and i['info']['author'] == x['author']:
+                if i['community'] == x['community'] and i['title'] == x['title'] and i['author'] == x['author']:
                     data = i
             url = "/posts/" +data['community'] +"/post/"+ str(data['post_id'])
         message = {

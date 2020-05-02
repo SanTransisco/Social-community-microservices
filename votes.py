@@ -17,22 +17,70 @@ Posts_Store = Redis(db =1)
 #So you can sort
 Top = Redis(db=2)
 
+def decode_redis_results(arr):
+    result = []
+    for i in arr:
+        result.append(i.decode("utf-8"))
+    return result
+
 
 @app.teardown_appcontext
 def close_connection(exception):
     print("We are shutting down")
-
+'''
 @app.cli.command('init')
 def init_db():
     with app.app_context():
+'''
+
+
+@app.route('/votes/<_community>/post/<_post_id>/new_post', methods=['PUT'])
+def new_post(_community,_post_id):
+    try:
+        #NEW STUFF
+        response = Posts_Store.hgetall(_post_id)
+        #NEW STUFF
+        if len(response) != 0 :
+            message = {
+                'status' : 400,
+                'message' : "Bad Request - Post already Exists"
+                }
+            resp = jsonify(message)
+            resp.status_code = 400
+        else:
+            response[b"UpVotes"] = str(0).encode("utf-8")
+            response[b"DownVotes"] = str(0).encode("utf-8")
+            response[b"Total_Score"] = str(0).encode("utf-8")
+
+            message = {
+                'status' : 200,
+                'message' : 'Post :' +_post_id + ' has been created on the voting microservice',
+            }
+            Posts_Store.hmset(_post_id,response)
+
+            #MECHANICAL_KEYBOARDS {011021 : 200}
+            Top.zadd(_community,{_post_id : 0})
+            Top.zadd("All",{_post_id : 0})
+            resp = jsonify(message)
+            resp.status_code = 200
+    except redis.exceptions as e:
+        message = {
+            'status' : 400,
+            'message' : "Bad Request- Community or Post does not exists"
+            }
+        resp = jsonify(message)
+        resp.status_code = 400
+
+    return resp
+
 
 @app.route('/votes/<_community>/post/<_post_id>/upvote', methods=['PATCH'])
 def upvote_post(_community,_post_id):
     try:
         #NEW STUFF
-        response = Posts_Store.get(_post_id)
+        response = Posts_Store.hgetall(_post_id)
         #NEW STUFF
-        if(type(response) is NoneType):
+        if len(response) == 0 :
             message = {
                 'status' : 404,
                 'message' : "Post Not Found"
@@ -40,31 +88,29 @@ def upvote_post(_community,_post_id):
             resp = jsonify(message)
             resp.status_code = 404
         else:
-            dict = json.loads(response)
 
-            dict["Upvotes"]+=1
-            dict["Total_Score"]+=1
+
+            response[b"UpVotes"] = str(int(response[b"UpVotes"])+1).encode("utf-8")
+            response[b"Total_Score"] = str(int(response[b"Total_Score"])+1).encode("utf-8")
 
             message = {
                 'status' : 200,
-                'upvote' : dict["Upvotes"],
+                'upvote' : int(response[b"UpVotes"]),
                 'message' : 'Post :' +_post_id + ' has been upvoted',
             }
-            res_string = json.dumps(dict)
 
-            Posts_Store.mset({_post_id:res_string})
+            Posts_Store.hmset(_post_id,response)
 
             #MECHANICAL_KEYBOARDS {011021 : 200}
-            Top.zadd(_community,{_post_id : dict["Total_Score"]})
-
-            Top.zadd("All",{_post_id : dict["Total_Score"]})
+            Top.zadd(_community,{_post_id : int(response[b"Total_Score"])+1})
+            Top.zadd("All",{_post_id : int(response[b"Total_Score"])+1})
 
             resp = jsonify(message)
             resp.status_code = 200
     except redis.exceptions as e:
         message = {
             'status' : 400,
-            'message' : "Bad Request"
+            'message' : "Bad Request- Community or Post does not exists"
             }
         resp = jsonify(message)
         resp.status_code = 400
@@ -75,9 +121,9 @@ def upvote_post(_community,_post_id):
 @app.route('/votes/<_community>/post/<_post_id>/downvote', methods=['PATCH'])
 def downvote_post(_community,_post_id):
     try:
-        response = Posts_Store.get(_post_id)
+        response = Posts_Store.hgetall(_post_id)
         #NEW STUFF
-        if(type(response) is NoneType):
+        if len(response) ==0:
             message = {
                 'status' : 404,
                 'message' : "Post Not Found"
@@ -85,27 +131,23 @@ def downvote_post(_community,_post_id):
             resp = jsonify(message)
             resp.status_code = 404
         else:
-            dict = json.loads(response)
-
-            dict["Downvotes"]+=1
-            dict["Total_Score"]-=1
+            response[b"DownVotes"] = str(int(response[b"DownVotes"])+1).encode("utf-8")
+            response[b"Total_Score"] = str(int(response[b"Total_Score"])-1).encode("utf-8")
             message = {
                 'status' : 200,
-                'downvote' : (int(all_posts[0]['downvote'])+1),
+                'downvote' : int(response[b"DownVotes"]),
                 'message' : 'Post :' +_post_id + ' has been downvoted',
             }
-            res_string = json.dumps(dict)
-            Posts_Store.mset({_post_id:res_string})
 
-            Top.zadd(_community,{_post_id : dict["Total_Score"]})
-            Top.zadd("All",{_post_id : dict["Total_Score"]})
-
+            Posts_Store.hmset(_post_id,response)
+            Top.zadd(_community,{_post_id : int(response[b"Total_Score"])})
+            Top.zadd("All",{_post_id : int(response[b"Total_Score"])})
             resp = jsonify(message)
             resp.status_code = 200
     except redis.exceptions as e:
         message = {
             'status' : 400,
-            'message' : "Bad Request, fail to insert sql " + str(e)
+            'message' : "Bad Request- Community or Post does not exists"
             }
         resp = jsonify(message)
         resp.status_code = 400
@@ -115,8 +157,9 @@ def downvote_post(_community,_post_id):
 @app.route('/votes/<_community>/post/<_post_id>/score', methods=['GET'])
 def show_votes(_community, _post_id):
     try:
-
-        if(len(all_posts) is 0):
+        response = Posts_Store.hgetall(_post_id)
+        #NEW STUFF
+        if len(response) ==0:
             message = {
                 'status' : 404,
                 'message' : "Post Not Found"
@@ -124,11 +167,10 @@ def show_votes(_community, _post_id):
             resp = jsonify(message)
             resp.status_code = 404
         else:
-            print(all_posts[0].keys())
             message = {
                 'status' : 200,
-                'upvote' : (int(all_posts[0]['upvote'])),
-                'downvote': (int(all_posts[0]['downvote'])),
+                'upvote' : int(response[b'UpVotes']),
+                'downvote': int(response[b'DownVotes']),
                 'message' : 'Post: ' + _post_id + ' votes reported'
             }
             resp = jsonify(message)
@@ -137,7 +179,7 @@ def show_votes(_community, _post_id):
     except redis.exceptions as e:
         message = {
             'status' : 400,
-            'message' : "Bad Request, fail to insert sql " + str(e)
+            'message' : "Bad Request- Community or Post does not exists"
             }
         resp = jsonify(message)
         resp.status_code = 400
@@ -148,6 +190,7 @@ def show_votes(_community, _post_id):
 def top_posts(n_posts):
     try:
         result=Top.zrevrange("All",0,int(n_posts)-1)
+        payload = decode_redis_results(result)
         message = {
             'status' : 200,
             'data' : result,
@@ -167,9 +210,10 @@ def top_posts(n_posts):
     return resp
 
 @app.route('/votes/<_community>/top/<n_posts>', methods=['GET'])
-def top_posts(_community, n_posts):
+def top_posts_community(_community, n_posts):
     try:
         result=Top.zrevrange(_community,0,int(n_posts)-1)
+        payload = decode_redis_results(result)
         message = {
             'status' : 200,
             'data' : result,
@@ -181,7 +225,7 @@ def top_posts(_community, n_posts):
     except sqlite3.Error as e:
         message = {
             'status' : 400,
-            'message' : "Bad Request, Posts not found",
+            'message' : "Bad Request- Community or Post does not exists"
         }
         resp = jsonify(message)
         resp.status_code = 400

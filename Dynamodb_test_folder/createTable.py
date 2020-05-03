@@ -15,7 +15,7 @@ try:
 			},
 			{
 				'AttributeName': 'time_posted',
-				'AttributeType': 'N'  #SORT key
+				'AttributeType': 'N' 
 			}
 		],
 		TableName='posts',

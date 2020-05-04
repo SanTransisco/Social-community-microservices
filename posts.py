@@ -5,20 +5,27 @@ from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
 import json
 import uuid
+import time
 from datetime import datetime
 import pytz
 from operator import itemgetter
 
 app = flask.Flask(__name__)
 
-def delete_table():
-    dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-    table = dynamodb.Table('posts')
-    table.delete()
-
-def make_dicts(cursor, row):
-    return dict((cursor.description[idx][0], value)
-                for idx, value in enumerate(row))
+def format_list(list):
+    result = []
+    for x in list:
+        element = {}
+        element['post_id']= x['post_id']['S']
+        element['community']= x['community']['S']
+        element['author']= x['author']['S']
+        element['title']=x['title']['S']
+        element['text']=x['text']['S']
+        element['date']=int(x['date']['N'])
+        if 'url' in x:
+            element['url'] = x['url']['S']
+        result.append(element)
+    return result
 
 @app.cli.command('init')
 def init_db():
@@ -29,13 +36,18 @@ def init_db():
 def view_post(_community,_post_id):
     if request.method== 'GET':
         try:
-            dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-            table = dynamodb.Table('posts')
-            response = table.query(
-                KeyConditionExpression=Key('post_id').eq(_post_id) & Key('community').eq(_community)
+            db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+            y = int(time.time())
+            data = db.query(
+                TableName='posts',
+                KeyConditionExpression="community = :comm AND post_id =:id",
+                ExpressionAttributeValues={
+                    ':comm' :{ 'S': _community },
+                    ':id': {'S': str(post_id)}
+                }
             )
-
-            data = json.dumps(response['Items'])
+            data = data['Items']
+            new_Data = json.dumps(format_list(data)[0])
             if(len(data) <= 2 ):
                 message = {
                     'status' : 400,
@@ -46,7 +58,7 @@ def view_post(_community,_post_id):
             else:
                 message = {
                     'status' : 200,
-                    'data' : data,
+                    'data' : new_Data,
                     'message': '200 ok'
                 }
                 resp = jsonify(message)
@@ -89,21 +101,26 @@ def view_post(_community,_post_id):
 @app.route('/posts/<_community>/recent/<_n_posts>', methods=['GET'])
 def view_community(_community, _n_posts):
     try:
-        dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-        table = dynamodb.Table('posts')
-        response = table.scan()
-        response = sorted(response['Items'], key=itemgetter('date'), reverse=True)
-        data = list()
-        limit_count = 0
-        for i in response:
-            if i['community'] == _community:
-                if limit_count < int(_n_posts):
-                    data.append(i)
-                    limit_count += 1
-        data = json.dumps(data)
+        db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        y = int(time.time())
+        data = db.query(
+            TableName='posts',
+            IndexName = 'recent',
+            Limit = int(_n_posts),
+            KeyConditionExpression="community = :comm AND #d <= :date",
+            ExpressionAttributeNames={
+                '#d' : 'date'
+            },
+            ExpressionAttributeValues={
+                ':comm' :{ 'S': _community},
+                ':date': { 'N': str(y) }
+            }
+        )
+        data = data['Items']
+        new_Data = json.dumps(format_list(data))
         message = {
             'status' : 200,
-            'data' : data,
+            'data' : new_Data,
             'message': '200 ok'
             }
         resp = jsonify(message)
@@ -122,20 +139,29 @@ def view_community(_community, _n_posts):
 @app.route('/posts/all/recent/<_n_posts>', methods=['GET'])
 def view_all(_n_posts):
     try:
-        dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-        table = dynamodb.Table('posts')
-        response = table.scan()
-        response = sorted(response['Items'], key=itemgetter('date'), reverse=True)
-        data = list()
-        limit_count = 0
-        for i in response:
-            if limit_count < int(_n_posts):
-                data.append(i)
-                limit_count += 1
-        data = json.dumps(data)
+        db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        y = int(time.time())
+        print("Current Time")
+        print(y)
+        data = db.query(
+            TableName='posts',
+            IndexName='recent',
+            Limit = int(_n_posts),
+            Select = 'ALL_ATTRIBUTES',
+            KeyConditionExpression="community = :comm AND #d <= :date",
+            ExpressionAttributeNames={
+                '#d' : 'date'
+            },
+            ExpressionAttributeValues={
+                ':comm' :{ 'S': "All"},
+                ':date': { 'N': str(y) }
+            }
+        )
+        data = data['Items']
+        new_Data = json.dumps(format_list(data))
         message = {
             'status' : 200,
-            'data' : data,
+            'data' : new_Data,
             'message': '200 ok'
             }
         resp = jsonify(message)
@@ -157,9 +183,10 @@ def new_post(_community):
         table = dynamodb.Table('posts')
         x = request.json
         post_id = uuid.uuid4()
-        date = datetime.utcnow()
-        date = date.replace(tzinfo=pytz.utc)
-        if'url' in x:
+        date = time.time()
+        #date = datetime.utcnow()
+        #date = date.replace(tzinfo=pytz.utc)
+        if 'url' in x:
             table.put_item(
                 Item={
                      'post_id': str(post_id),
@@ -168,9 +195,18 @@ def new_post(_community):
 		             'title': x['title'],
                      'url': x['url'],
                      'text': x['text'],
-		             'date': str(date)
-
-
+		             'date': int(date)
+                 }
+            )
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': "All",
+		             'author': x['author'],
+		             'title': x['title'],
+                     'url': x['url'],
+                     'text': x['text'],
+		             'date': int(date)
                  }
             )
         else:
@@ -181,19 +217,32 @@ def new_post(_community):
                      'author': x['author'],
 	                 'title': x['title'],
  		             'text': x['text'],
-                     'date': str(date)
+                     'date': int(date)
+                 }
+            )
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': 'All',
+                     'author': x['author'],
+	                 'title': x['title'],
+ 		             'text': x['text'],
+                     'date': int(date)
                  }
             )
 
         with app.app_context():
-            dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-            table = dynamodb.Table('posts')
-            response = table.scan()
-            data = dict();
-            for i in response['Items']:
-                if i['community'] == x['community'] and i['title'] == x['title'] and i['author'] == x['author']:
-                    data = i
-            url = "/posts/" +data['community'] +"/post/"+ str(data['post_id'])
+            db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+            data = db.query(
+                TableName='posts',
+                KeyConditionExpression="community = :comm AND post_id =:id",
+                ExpressionAttributeValues={
+                    ':comm' :{ 'S': x['community'] },
+                    ':id': {'S':str(post_id)}
+                }
+            )
+            data = data['Items'][0]
+            url = "/posts/" +data['community']['S'] +"/post/"+ str(data['post_id']['S'])
         message = {
             'status' : 201,
             'url' : str(url),

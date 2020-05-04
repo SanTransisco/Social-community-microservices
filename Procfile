@@ -6,3 +6,7 @@ postapi3: gunicorn3 -b localhost:$PORT posts:app
 voteapi1: gunicorn3 -b localhost:$PORT votes:app
 voteapi2: gunicorn3 -b localhost:$PORT votes:app
 voteapi3: gunicorn3 -b localhost:$PORT votes:app
+
+BFF1: gunicorn3 -b localhost:$PORT BFF:app
+BFF2: gunicorn3 -b localhost:$PORT BFF:app
+BFF3: gunicorn3 -b localhost:$PORT BFF:app

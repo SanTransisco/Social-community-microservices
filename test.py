@@ -1,29 +1,31 @@
 import requests, json
 import argparse
 from feedgen.feed import FeedGenerator
+from datetime import datetime
+import pytz
 
 def view_all(_num):
-    url = 'http://localhost:2015/posts/all/recent/{num}'
+    url = 'http://localhost:5000/posts/all/recent/{num}'
     url = url.format(num = _num)
     r = requests.get(url)
     return r
 
 def view_post(_community, _id):
-    url = 'http://localhost:2015/posts/{community}/post/{id}'
+    url = 'http://localhost:5000/posts/{community}/post/{id}'
     url = url.format(community = _community, id = _id)
     headers = {'content-type': 'application/json'}
     r = requests.get(url, headers=headers)
     return r
 
 def view_by_community(_community, _num):
-    url = 'http://localhost:2015/posts/{community}/recent/{num}'
+    url = 'http://localhost:5000/posts/{community}/recent/{num}'
     url = url.format(community = _community, num = _num)
     headers = {'content-type': 'application/json'}
     r = requests.get(url, headers=headers)
     return r
 
 def new_post(_community, post):
-    url = 'http://localhost:2015/posts/{community}/new'
+    url = 'http://localhost:5000/posts/{community}/new'
     url = url.format(community = _community)
     with open(post, "r") as f:
         data = json.load(f)
@@ -32,9 +34,11 @@ def new_post(_community, post):
     return r
 
 def create_25_posts_to_any_community(num):
-    resp = view_all(num)
+    resp = view_all(5)
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
+    #The data is a list of post objects
     data = json.loads(resp.json()['data'])
+    #This is genating the RSS feeds
     fg = FeedGenerator()
     fg.id('http://localhost:2015/posts/all/recent/25')
     fg.title('Microservice - view all')
@@ -42,13 +46,17 @@ def create_25_posts_to_any_community(num):
     fg.description('The 25 most recent posts to any community')
     fg.language('en')
 
+    #This is genating the RSS feeds
     for i in data:
         fe = fg.add_entry()
         fe.id(i['post_id'])
         fe.author(name = i['author'])
         fe.title(i['title'])
         fe.description(i['community'])
-        fe.published(i['date'])
+        date = datetime.fromtimestamp(i['date'])
+        date = date.replace(tzinfo=pytz.utc)
+        print(date)
+        fe.published(date)
         fe.content(content=i['text'])
         if 'url' in i:
             fe.source(url=i['url'])
@@ -58,7 +66,7 @@ def create_25_posts_to_any_community(num):
     fg.rss_file('rss/AllPosts.rss') # Write the RSS feed to a file
 
 def create_25_posts_to_a_community(community, num):
-    resp = view_by_community(community,num)
+    resp = view_by_community(community,2)
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
     data = json.loads(resp.json()['data'])
     fixed_url = 'http://localhost:2015/posts/{}/recent/{}'.format(community, num)
@@ -75,7 +83,9 @@ def create_25_posts_to_a_community(community, num):
         fe.author(name = i['author'])
         fe.title(i['title'])
         fe.description(i['community'])
-        fe.published(i['date'])
+        date = datetime.fromtimestamp(i['date'])
+        date = date.replace(tzinfo=pytz.utc)
+        fe.published(date)
         fe.content(content=i['text'])
         if 'url' in i:
             fe.source(url=i['url'])

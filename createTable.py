@@ -8,13 +8,14 @@ try:
 		TableName='posts',
     		KeySchema=[
     		    {
-    		        'AttributeName': 'post_id',
-    		        'KeyType': 'HASH'  #Partition key
+    		        'AttributeName': 'community',
+    		        'KeyType': 'HASH'  #Sort key
     		    },
     		    {
-    		        'AttributeName': 'community',
-    		        'KeyType': 'RANGE'  #Sort key
+    		        'AttributeName': 'post_id',
+    		        'KeyType': 'RANGE'  #Partition key
     		    }
+
     		],
     		AttributeDefinitions=[
     		    {
@@ -25,8 +26,31 @@ try:
     		        'AttributeName': 'community',
     		        'AttributeType': 'S'
     		    },
+				{
+					'AttributeName': 'date',
+					'AttributeType': 'N'
+				}
 
     		],
+			LocalSecondaryIndexes=[
+				{
+					'IndexName' : 'recent',
+					'KeySchema':[
+						{
+							'AttributeName': 'community',
+							'KeyType': 'HASH'  #PAR key
+						},
+						{
+							'AttributeName': 'date',
+							'KeyType': 'RANGE'  #Sort key
+						},
+
+					],
+					'Projection':{
+						'ProjectionType' : 'ALL'
+					}
+				},
+			],
     		ProvisionedThroughput={
     		    'ReadCapacityUnits': 100,
     		    'WriteCapacityUnits': 100

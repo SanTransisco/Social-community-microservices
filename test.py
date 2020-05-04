@@ -1,5 +1,6 @@
 import requests, json
 import argparse
+import FeedGenerator
 def view_all(_num):
     url = 'http://localhost:2015/posts/all/recent/{num}'
     url = url.format(num = _num)
@@ -70,6 +71,33 @@ def order_posts(json_obj):
     headers = {'content-type': 'application/json'}
     r = requests.get(url, json = json_obj, headers=headers)
     return r
+
+def create_25_posts_to_any_community():
+    resp = view_all(5)
+    assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
+    data = resp.json()['data']
+    fg = FeedGenerator()
+    fg.id('http://localhost:2015/posts/all/recent/25')
+    fg.title('Microservice - view all')
+    fg.link( href='http://localhost:2015/posts/all/recent/25', rel='alternate' )
+    fg.description('The 25 most recent posts to any community')
+    fg.language('en')
+
+    for i in data:
+        print(type(i))
+        fe = fg.add_entry()
+        fe.id('http://localhost:2015')
+        fe.author(name = i['author'])
+        fe.title(i['title'])
+        fe.description(i['community'])
+        fe.summary(i['date'])
+        #fe.content(content=i['text'])
+
+
+
+    rssfeed  = fg.rss_str(pretty=True) # Get the RSS feed as string
+    fg.rss_file('AllPosts.xml') # Write the RSS feed to a file
+    fg.rss_file('AllPosts.rss') # Write the RSS feed to a file
 
 
 
@@ -279,6 +307,8 @@ def main():
     x = json.loads(x)
     resp = order_posts(x)
     print(resp.json()['data'])
+
+    create_25_posts_to_any_community()
 
 
 if __name__=="__main__":

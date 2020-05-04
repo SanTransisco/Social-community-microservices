@@ -15,7 +15,11 @@ try:
 			},
 			{
 				'AttributeName': 'time_posted',
+<<<<<<< HEAD
 				'AttributeType': 'N'
+=======
+				'AttributeType': 'N' 
+>>>>>>> 2be2f6e421ed4e26e3f709f56bc6e2f7e946af6d
 			}
 		],
 		TableName='posts',

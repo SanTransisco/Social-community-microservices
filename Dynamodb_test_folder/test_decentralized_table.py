@@ -24,14 +24,34 @@ dynamodb.put_item(
 
      }
 )
+dynamodb.put_item(
+    TableName = 'posts',
+    Item={
+        'post_id': {'S':'3'},
+        'community': {'S':"Animal Crossing"},
+        'time_posted': {'N':"1002"},
+        'author': {'S':"Kailie"},
+        'title': {'S':"I got takoyaki boi"},
+        'url': {'S':"reddit.com"},
+        'text': {'S':"I'm sorry Lionel"},
+
+     }
+)
 
 x = dynamodb.query(
     TableName = 'posts',
     IndexName = 'Recent',
     Select = 'ALL_ATTRIBUTES',
+<<<<<<< HEAD
     KeyConditionExpression = "community = :comm AND time_posted < :time",
     ExpressionAttributeValues={
         ":comm": {'S':"DNE"},
+=======
+
+    KeyConditionExpression = "community = :comm AND time_posted < :time",
+    ExpressionAttributeValues={
+        ":comm": {'S':"Animal Crossing"},
+>>>>>>> 2be2f6e421ed4e26e3f709f56bc6e2f7e946af6d
         ":time": {'N':"2000"}
     }
 )

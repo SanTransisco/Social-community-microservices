@@ -2,6 +2,7 @@ import flask
 from redis import Redis
 from flask import  g, jsonify, request
 import json
+import time
 
 app = flask.Flask(__name__)
 #This is a regular SET that just stores all the upvote/downvote info
@@ -51,6 +52,7 @@ def new_post(_community,_post_id):
             response[b"UpVotes"] = str(0).encode("utf-8")
             response[b"DownVotes"] = str(0).encode("utf-8")
             response[b"Total_Score"] = str(0).encode("utf-8")
+            response[b"date_created"] = str(int(time.time())).encode("utf-8")
 
             message = {
                 'status' : 200,
@@ -61,6 +63,7 @@ def new_post(_community,_post_id):
             #MECHANICAL_KEYBOARDS {011021 : 200}
             Top.zadd(_community,{_post_id : 0})
             Top.zadd("All",{_post_id : 0})
+            Top.zadd("HOT",{_post_id : 0})
             resp = jsonify(message)
             resp.status_code = 200
     except redis.exceptions as e:

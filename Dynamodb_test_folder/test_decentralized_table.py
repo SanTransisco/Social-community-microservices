@@ -29,19 +29,10 @@ x = dynamodb.query(
     TableName = 'posts',
     IndexName = 'Recent',
     Select = 'ALL_ATTRIBUTES',
-    KeyConditions={
-        'community': {
-            'AttributeValueList':[
-                {'S':"Mechanical_Keyboards"}
-            ],
-            'ComparisonOperator': 'EQ'
-        },
-        'time_posted': {
-            'AttributeValueList':[
-                {'N':'2000'}
-            ],
-            'ComparisonOperator': 'LT'
-        },
+    KeyConditionExpression = "community = :comm AND time_posted < :time",
+    ExpressionAttributeValues={
+        ":comm": {'S':"DNE"},
+        ":time": {'N':"2000"}
     }
 )
 for item in x['Items']:

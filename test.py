@@ -31,8 +31,8 @@ def new_post(_community, post):
     r = requests.post(url, json=data, headers=headers)
     return r
 
-def create_25_posts_to_any_community():
-    resp = view_all(5)
+def create_25_posts_to_any_community(num):
+    resp = view_all(num)
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
     data = json.loads(resp.json()['data'])
     fg = FeedGenerator()
@@ -43,20 +43,46 @@ def create_25_posts_to_any_community():
     fg.language('en')
 
     for i in data:
-        print(type(i))
         fe = fg.add_entry()
-        fe.id('http://localhost:2015')
+        fe.id(i['post_id'])
         fe.author(name = i['author'])
         fe.title(i['title'])
         fe.description(i['community'])
-        fe.summary(i['date'])
-        #fe.content(content=i['text'])
-
-
+        fe.published(i['date'])
+        fe.content(content=i['text'])
+        if 'url' in i:
+            fe.source(url=i['url'])
 
     rssfeed  = fg.rss_str(pretty=True) # Get the RSS feed as string
-    fg.rss_file('AllPosts.xml') # Write the RSS feed to a file
-    fg.rss_file('AllPosts.rss') # Write the RSS feed to a file
+    fg.rss_file('xml/AllPosts.xml') # Write the RSS feed to a file
+    fg.rss_file('rss/AllPosts.rss') # Write the RSS feed to a file
+
+def create_25_posts_to_a_community(community, num):
+    resp = view_by_community(community,num)
+    assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
+    data = json.loads(resp.json()['data'])
+    fixed_url = 'http://localhost:2015/posts/{}/recent/{}'.format(community, num)
+    fg = FeedGenerator()
+    fg.id(fixed_url)
+    fg.title('Microservice - view community')
+    fg.link( href=fixed_url, rel='alternate' )
+    fg.description('The 25 most recent posts to any community')
+    fg.language('en')
+
+    for i in data:
+        fe = fg.add_entry()
+        fe.id(i['post_id'])
+        fe.author(name = i['author'])
+        fe.title(i['title'])
+        fe.description(i['community'])
+        fe.published(i['date'])
+        fe.content(content=i['text'])
+        if 'url' in i:
+            fe.source(url=i['url'])
+
+    rssfeed  = fg.rss_str(pretty=True) # Get the RSS feed as string
+    fg.rss_file('xml/{}Posts.xml'.format(community)) # Write the RSS feed to a file
+    fg.rss_file('rss/{}Posts.rss'.format(community)) # Write the RSS feed to a file
 
 def main():
     parser = argparse.ArgumentParser(description='CPSC 449 project 2')
@@ -107,30 +133,17 @@ def main():
         LIST N MOST RECENT POST FOR ALL COMMUNITIES
     """
     print( "\n3 - List the n most recent posts to any community\n")
-    create_25_posts_to_any_community()
+    create_25_posts_to_any_community(5)
+
     """
-    print( " n = 5 ")
-    resp = view_all(5)
-    assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
-    #assert len(resp.json()['data']) == 5 , "FAIL - Expected the length of the json to be 5. Instead received" + str(len(resp.json()["data"]))
-    print("PASS - view all last 5 posts returned 5 posts")
-    if(args.verbose):
-        print(resp.json()['data'])
-
-
         LIST N MOST RECENT POST FOR A PARTICULAR COMMUNITY
+    """
 
     print( "\n4 - List the n most recent posts to a particular community\n")
     print( " In this case the particular community is CSUF-CPSC449")
-    print( " n = 5 ")
-    resp = view_by_community("CSUF-CPSC449","5")
-    assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
-    #assert len(resp.json()['data']) == 5 , "FAIL - Expected the length of the json to be 5. Instead received" + str(len(resp.json()["data"]))
-    print("PASS - view all last 5 posts returned 5 posts")
-    if(args.verbose):
-        print(resp.json()['data'])
+    create_25_posts_to_a_community("CSUF-CPSC449","5")
 
-    """
+
 
 
 if __name__=="__main__":

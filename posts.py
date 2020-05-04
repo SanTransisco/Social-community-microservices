@@ -6,6 +6,7 @@ from botocore.exceptions import ClientError
 import json
 import uuid
 from datetime import datetime
+import pytz
 from operator import itemgetter
 
 app = flask.Flask(__name__)
@@ -156,7 +157,8 @@ def new_post(_community):
         table = dynamodb.Table('posts')
         x = request.json
         post_id = uuid.uuid4()
-        date = str(datetime.now())
+        date = datetime.utcnow()
+        date = date.replace(tzinfo=pytz.utc)
         if'url' in x:
             table.put_item(
                 Item={
@@ -166,7 +168,7 @@ def new_post(_community):
 		             'title': x['title'],
                      'url': x['url'],
                      'text': x['text'],
-		             'date': date
+		             'date': str(date)
 
 
                  }
@@ -178,7 +180,8 @@ def new_post(_community):
                      'community': x['community'],
                      'author': x['author'],
 	                 'title': x['title'],
-                     'date': date
+ 		             'text': x['text'],
+                     'date': str(date)
                  }
             )
 

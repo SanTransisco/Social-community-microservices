@@ -23,7 +23,7 @@ def recent_posts(_community):
     headers = {'content-type': 'application/json'}
     r = requests.get(url, headers=headers)
     data = r.json()
-    final_data = json.load(data['data'])
+    final_data = data['data']
 
     fg = FeedGenerator()
     fg.id(url)
@@ -57,7 +57,7 @@ def all_recent_posts():
     headers = {'content-type': 'application/json'}
     r = requests.get(url, headers=headers)
     data = r.json()
-    final_data = json.load(data['data'])
+    final_data = data['data']
 
     fg = FeedGenerator()
     fg.id(url)
@@ -108,7 +108,7 @@ def top_posts(_community):
         headers = {'content-type': 'application/json'}
         r = requests.get(url, headers=headers)
         data = r.json()
-        post_info = json.load(data['data'])
+        post_info = data['data']
 
         fe = fg.add_entry()
         fe.id(post_info['post_id'])
@@ -150,7 +150,7 @@ def all_top_posts():
         headers = {'content-type': 'application/json'}
         r = requests.get(url, headers=headers)
         data = r.json()
-        post_info = json.load(data['data'])
+        post_info = data['data']
 
         fe = fg.add_entry()
         fe.id(post_info['post_id'])
@@ -175,16 +175,42 @@ def all_top_posts():
 def all_hot_posts():
     url = 'http://localhost:2015/votes/all/hot/{num}'
     url = url.format(num = 25)
+    headers = {'content-type': 'application/json'}
+    r = requests.get(url, headers=headers)
     data = r.json()
-    final_data = data['data']
-    message = {
-        'status': 200,
-        'data': final_data,
-        'message': '200 ok'
-    }
+    post_id = data['data']
 
-    resp = jsonify(message)
-    resp.status_code = 200
+    fg = FeedGenerator()
+    fg.id(url)
+    fg.title('Microservice - view all hot posts')
+    fg.link( href=url, rel='alternate' )
+    fg.description('The 25 hot posts to any community')
+    fg.language('en')
+
+    for i in post_id:
+        url = 'http://localhost:2015/posts/all/post/{id}'
+        url = url.format(id = i)
+        headers = {'content-type': 'application/json'}
+        r = requests.get(url, headers=headers)
+        data = r.json()
+        post_info = data['data']
+
+        fe = fg.add_entry()
+        fe.id(post_info['post_id'])
+        fe.author({'name': post_info['author'], 'email':""})
+        fe.title(post_info['title'])
+        fe.description(post_info['community'])
+        date = datetime.fromtimestamp(post_info['date'])
+        date = date.replace(tzinfo=pytz.utc)
+        print(date)
+        fe.published(date)
+        fe.content(content=post_info['text'])
+        if 'url' in post_info:
+            fe.source(url=post_info['url'], title=post_info['title'])
+
+    rssfeed  = fg.rss_str(pretty=True) # Get the RSS feed as string
+    resp = flask.Response(rssfeed, mimetype='text/xml', status = 200, content_type = 'application/rss+xml; charset=UTF-8')
+    return resp
 
 
 @app.errorhandler(404)

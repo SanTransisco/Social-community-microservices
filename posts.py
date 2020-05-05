@@ -1,67 +1,83 @@
 import flask
 from flask import render_template, g, jsonify, request
-import sqlite3
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
+from botocore.exceptions import ClientError
+import json
+import uuid
+import time
+from datetime import datetime
+import pytz
+from operator import itemgetter
+import requests
+
 app = flask.Flask(__name__)
 
-def make_dicts(cursor, row):
-    return dict((cursor.description[idx][0], value)
-                for idx, value in enumerate(row))
-
-def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = g._database = sqlite3.connect("posts.db")
-        db.row_factory = make_dicts
-    return db
-
-@app.teardown_appcontext
-def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
-
-def query_db(query, args=(), one=False):
-    cur = get_db().execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
-    return (rv[0] if rv else None) if one else rv
+def format_list(list):
+    result = []
+    for x in list:
+        element = {}
+        element['post_id']= x['post_id']['S']
+        element['community']= x['community']['S']
+        element['author']= x['author']['S']
+        element['title']=x['title']['S']
+        element['text']=x['text']['S']
+        element['date']=int(x['date']['N'])
+        if 'url' in x:
+            element['url'] = x['url']['S']
+        result.append(element)
+        test = 6
+    return result
 
 @app.cli.command('init')
 def init_db():
-    with app.app_context():
-        db = get_db()
-        with app.open_resource('posts.sql', mode='r') as f:
-            db.cursor().executescript(f.read())
-        db.commit()
-
+    #create_table()
+    pass
 
 @app.route('/posts/<_community>/post/<_post_id>', methods=['GET', 'DELETE'])
 def view_post(_community,_post_id):
+    db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+    test =0
+    if(_community.upper()=="ALL"):
+        _community = "All"
+    
     if request.method== 'GET':
         try:
-            query = "SELECT id, title, author, community, upvote, downvote, net_score, time FROM posts WHERE id = {post_id} AND community = '{community}';"
-            query = query.format(post_id = _post_id, community = _community)
-            data = query_db(query)
-            if(len(data) == 0 ):
+            test = 1
+            data = db.query(
+                TableName='posts',
+                KeyConditionExpression="community = :comm AND post_id = :id",
+                ExpressionAttributeValues={
+                    ':comm' :{ 'S': str(_community) },
+                    ':id': {'S': str(_post_id)}
+                }
+            )
+            test = 2
+            data = data['Items']
+            if(len(data) < 0 ):
                 message = {
                     'status' : 400,
-                    'message' : "Bad Request, Post not found "
+                    'message' : "Bad Request, Post not found ya dum dum "
                     }
                 resp = jsonify(message)
                 resp.status_code = 400
             else:
+                new_Data = format_list(data)[0]
+                test = 5
                 message = {
                     'status' : 200,
-                    'data' : data,
+                    'data' : new_Data,
                     'message': '200 ok'
                 }
                 resp = jsonify(message)
                 resp.status_code = 200
 
-        except sqlite3.Error as e:
+        except:
             message = {
                 'status' : 400,
-                'message' : "Bad Request, Post not found " + str(e) + " " + _community
+                'message' : "Bad Request, Post not found " + _community,
+                'post_id' : _post_id,
+                'test': test
                 }
             resp = jsonify(message)
             resp.status_code = 400
@@ -69,11 +85,15 @@ def view_post(_community,_post_id):
         return resp
     elif request.method == 'DELETE':
         try:
-            query = "DELETE FROM posts WHERE id = {post_id};"
-            query = query.format(post_id = _post_id)
-            db = get_db()
-            db.execute(query)
-            db.commit()
+            test = 21
+            response = db.delete_item(
+                TableName='posts',
+                Key={
+                    'post_id':{'S': _post_id},
+                    'community':{'S': _community}
+                }
+            )
+            test = 22
             message = {
                 'status' : 200,
                 'message' : "Delete successfully"
@@ -81,10 +101,11 @@ def view_post(_community,_post_id):
             resp = jsonify(message)
             resp.status_code = 200
 
-        except sqlite3.Error as e:
+        except:
             message = {
                 'status' : 400,
-                'message' : "Bad Request, fail to delete sql"
+                'message' : "Bad Request, fail to delete",
+                'test': test
                 }
             resp = jsonify(message)
             resp.status_code = 400
@@ -94,20 +115,32 @@ def view_post(_community,_post_id):
 @app.route('/posts/<_community>/recent/<_n_posts>', methods=['GET'])
 def view_community(_community, _n_posts):
     try:
-        query = "SELECT id, title, author, community, upvote, downvote, net_score, time FROM posts WHERE community ='{community}' ORDER BY time LIMIT {post_num};"
-
-        query = query.format(community =_community, post_num = _n_posts)
-        data = query_db(query)
-
+        db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        y = int(time.time())
+        data = db.query(
+            TableName='posts',
+            IndexName = 'recent',
+            Limit = int(_n_posts),
+            KeyConditionExpression="community = :comm AND #d <= :date",
+            ExpressionAttributeNames={
+                '#d' : 'date'
+            },
+            ExpressionAttributeValues={
+                ':comm' :{ 'S': _community},
+                ':date': { 'N': str(y) }
+            }
+        )
+        data = data['Items']
+        new_Data = format_list(data)
         message = {
             'status' : 200,
-            'data' : data,
+            'data' : new_Data,
             'message': '200 ok'
-        }
+            }
         resp = jsonify(message)
         resp.status_code = 200
 
-    except sqlite3.Error as e:
+    except:
         message = {
             'status' : 400,
             'message' : "Bad Request, Community not found"
@@ -120,20 +153,35 @@ def view_community(_community, _n_posts):
 @app.route('/posts/all/recent/<_n_posts>', methods=['GET'])
 def view_all(_n_posts):
     try:
-        query = "SELECT id, title, author, community, upvote, downvote, net_score, time FROM posts ORDER BY time LIMIT {post_num};"
-
-        query = query.format(post_num = _n_posts)
-        data = query_db(query)
-
+        db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        y = int(time.time())
+        print("Current Time")
+        print(y)
+        data = db.query(
+            TableName='posts',
+            IndexName='recent',
+            Limit = int(_n_posts),
+            Select = 'ALL_ATTRIBUTES',
+            KeyConditionExpression="community = :comm AND #d <= :date",
+            ExpressionAttributeNames={
+                '#d' : 'date'
+            },
+            ExpressionAttributeValues={
+                ':comm' :{ 'S': "All"},
+                ':date': { 'N': str(y) }
+            }
+        )
+        data = data['Items']
+        new_Data = format_list(data)
         message = {
             'status' : 200,
-            'data' : data,
+            'length' : len(data),
+            'data' : new_Data,
             'message': '200 ok'
-        }
+            }
         resp = jsonify(message)
         resp.status_code = 200
-
-    except sqlite3.Error as e:
+    except:
         message = {
             'status' : 400,
             'message' : "Bad Request, Posts not found"
@@ -146,36 +194,84 @@ def view_all(_n_posts):
 @app.route('/posts/<_community>/new', methods=['POST'])
 def new_post(_community):
     try:
+        dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        table = dynamodb.Table('posts')
         x = request.json
-
-        if'url' in x:
-            query = "INSERT INTO posts(title, author, community, url, text) VALUES ('{title}','{author}','{community}','{url}', '{text}')"
-            query = query.format(title = x['title'], author = x['author'], community = x['community'], url = x['url'], text = x['text'])
+        post_id = uuid.uuid4()
+        date = time.time()
+        if 'url' in x:
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': x['community'],
+		             'author': x['author'],
+		             'title': x['title'],
+                     'url': x['url'],
+                     'text': x['text'],
+		             'date': int(date)
+                 }
+            )
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': "All",
+		             'author': x['author'],
+		             'title': x['title'],
+                     'url': x['url'],
+                     'text': x['text'],
+		             'date': int(date)
+                 }
+            )
         else:
-            query = "INSERT INTO posts(title, author, community, text) VALUES ('{title}','{author}','{community}', '{text}')"
-            query = query.format(title = x['title'], author = x['author'], community = x['community'], text = x['text'])
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': x['community'],
+                     'author': x['author'],
+	                 'title': x['title'],
+ 		             'text': x['text'],
+                     'date': int(date)
+                 }
+            )
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': 'All',
+                     'author': x['author'],
+	                 'title': x['title'],
+ 		             'text': x['text'],
+                     'date': int(date)
+                 }
+            )
 
         with app.app_context():
-            db = get_db()
-            db.cursor().execute(query)
-            db.commit()
-            query = "SELECT id , community FROM posts WHERE title = '{title}' AND author = '{author}' AND community = '{community}' ORDER BY time DESC LIMIT 1"
-            query = query.format(title = x['title'], author = x['author'], community = x['community'])
-            data = query_db(query)
-            print( )
-            url = "/posts/" +data[0]['community'] +"/post/"+ str(data[0]['id'])
+            db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+            data = db.query(
+                TableName='posts',
+                KeyConditionExpression="community = :comm AND post_id =:id",
+                ExpressionAttributeValues={
+                    ':comm' :{ 'S': x['community'] },
+                    ':id': {'S':str(post_id)}
+                }
+            )
+            url = 'http://localhost:2015/votes/{community}/post/{id}/new_post'
+            url = url.format(community = _community, id = post_id)
+            headers = {'content-type': 'application/json'}
+            r = requests.post(url,json='' ,headers=headers)
+            data = data['Items'][0]
+            url = "/posts/" +data['community']['S'] +"/post/"+ str(data['post_id']['S'])
         message = {
             'status' : 201,
-            'url' : url,
+            'url' : str(url),
             'message' : "Insert successfully"
             }
         resp = jsonify(message)
         resp.status_code = 201
 
-    except sqlite3.Error as e:
+    except:
         message = {
             'status' : 400,
-            'message' : "Bad Request, fail to insert sql " + str(e)
+            'message' : "Bad Request, fail to insert sql"
             }
         resp = jsonify(message)
         resp.status_code = 400

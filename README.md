@@ -7,31 +7,32 @@
 4. Kailie Chang
 
 # Contributions:
-- Lambert and Shijie own development and testing of the posting microservice
-- San and Kailie own development and testing of the voting microservice
+- Lambert and Shijie own development and testing of the posting microservice, BFF recent functionalities, xml generation
+- San and Kailie own development and testing of the voting microservice, BFF top and hot functionalities
 - All group member own the procfile, WSGI server, load balancer, and Tuffix deployment
 
 # Deploying multiple instances of the posts and voting microservice using load-balancing
 1. Rename `env.txt` to `.env` to setup the deployment environment
-2. If posts.db does not exists.
-In the terminal
+2. Start DynamoDB on your computer open a command prompt window,
+navigate to the directory where you extracted DynamoDBLocal.jar, and enter the following command.
 ```
-$ flask init
+$ java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb
 ```
-3.Then run foreman
+3.Then open another terminal instance in the project folder and run foreman
 ```
 $ foreman start -c
 ```
-4. Open 2rd terminal:
+4. Open yet another terminal instance and type the command:
 ```
 $ ulimit -n 8192 && caddy
 ```
-5. Run the test script in a 3rd Terminal
-
-**Before running the test script make sure the posts.db has not been modified yet**
-
-If posts.db has been modified, delete it and start from step 1 if you want to run the
-test script.
+5. IN YET ANOTHER terminal instance type the command:
+```
+$ flask run
+```
+We are under the belief that we can run the BFF as another set of microservices using foreman.
+However, for the sake of not having this potentially blow up we will run it using flask.
+6. And open the last instance of the terminal, and type the command:
 ```
 $ python3 test.py
 ```
@@ -55,3 +56,10 @@ $ python3 test.py -v
 3. Report the number of upvotes and downvotes for a post
 4. List the n top-scoring posts to any community
 5. Given a list of post identifiers, return the list sorted by score.
+
+## BFF
+1. The 25 most recent posts to a particular community
+2. The 25 most recent posts to any community
+3. The top 25 posts to a particular community, sorted by score
+4. The top 25 posts to any community, sorted by score
+5. The hot 25 posts to any community, ranked using Reddit’s “hot ranking” algorithm.

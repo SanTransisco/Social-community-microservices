@@ -150,7 +150,7 @@ def all_top_posts():
         headers = {'content-type': 'application/json'}
         r = requests.get(url, headers=headers)
         data = r.json()
-        post_info = json.load(data['data'])
+        post_info = data['data']
 
         fe = fg.add_entry()
         fe.id(post_info['post_id'])
@@ -176,7 +176,9 @@ def all_hot_posts():
     url = 'http://localhost:2015/votes/all/hot/{num}'
     url = url.format(num = 25)
     data = r.json()
-    final_data = data['data']
+    post_id = data['data']
+
+
     message = {
         'status': 200,
         'data': final_data,

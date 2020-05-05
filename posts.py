@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 import pytz
 from operator import itemgetter
+import requests
 
 app = flask.Flask(__name__)
 
@@ -25,6 +26,7 @@ def format_list(list):
         if 'url' in x:
             element['url'] = x['url']['S']
         result.append(element)
+        test = 6
     return result
 
 @app.cli.command('init')
@@ -34,28 +36,31 @@ def init_db():
 
 @app.route('/posts/<_community>/post/<_post_id>', methods=['GET', 'DELETE'])
 def view_post(_community,_post_id):
+    db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+    test =0
     if request.method== 'GET':
         try:
-            db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-            y = int(time.time())
+            test = 1
             data = db.query(
                 TableName='posts',
-                KeyConditionExpression="community = :comm AND post_id =:id",
+                KeyConditionExpression="community = :comm AND post_id = :id",
                 ExpressionAttributeValues={
-                    ':comm' :{ 'S': _community },
-                    ':id': {'S': str(post_id)}
+                    ':comm' :{ 'S': str(_community) },
+                    ':id': {'S': str(_post_id)}
                 }
             )
+            test = 2
             data = data['Items']
-            new_Data = json.dumps(format_list(data)[0])
-            if(len(data) <= 2 ):
+            if(len(data) < 0 ):
                 message = {
                     'status' : 400,
-                    'message' : "Bad Request, Post not found "
+                    'message' : "Bad Request, Post not found ya dum dum "
                     }
                 resp = jsonify(message)
                 resp.status_code = 400
             else:
+                new_Data = format_list(data)[0]
+                test = 5
                 message = {
                     'status' : 200,
                     'data' : new_Data,
@@ -67,7 +72,9 @@ def view_post(_community,_post_id):
         except:
             message = {
                 'status' : 400,
-                'message' : "Bad Request, Post not found " + str(e) + " " + _community
+                'message' : "Bad Request, Post not found " + _community,
+                'post_id' : _post_id,
+                'test': test
                 }
             resp = jsonify(message)
             resp.status_code = 400
@@ -75,12 +82,15 @@ def view_post(_community,_post_id):
         return resp
     elif request.method == 'DELETE':
         try:
-            response = table.delete_item(
+            test = 21
+            response = db.delete_item(
+                TableName='posts',
                 Key={
-                    'post_id': _post_id,
-                    'community': _community
+                    'post_id':{'S': _post_id},
+                    'community':{'S': _community}
                 }
             )
+            test = 22
             message = {
                 'status' : 200,
                 'message' : "Delete successfully"
@@ -91,7 +101,8 @@ def view_post(_community,_post_id):
         except:
             message = {
                 'status' : 400,
-                'message' : "Bad Request, fail to delete"
+                'message' : "Bad Request, fail to delete",
+                'test': test
                 }
             resp = jsonify(message)
             resp.status_code = 400
@@ -117,7 +128,7 @@ def view_community(_community, _n_posts):
             }
         )
         data = data['Items']
-        new_Data = json.dumps(format_list(data))
+        new_Data = format_list(data)
         message = {
             'status' : 200,
             'data' : new_Data,
@@ -158,9 +169,10 @@ def view_all(_n_posts):
             }
         )
         data = data['Items']
-        new_Data = json.dumps(format_list(data))
+        new_Data = format_list(data)
         message = {
             'status' : 200,
+            'length' : len(data),
             'data' : new_Data,
             'message': '200 ok'
             }
@@ -184,8 +196,6 @@ def new_post(_community):
         x = request.json
         post_id = uuid.uuid4()
         date = time.time()
-        #date = datetime.utcnow()
-        #date = date.replace(tzinfo=pytz.utc)
         if 'url' in x:
             table.put_item(
                 Item={
@@ -241,6 +251,10 @@ def new_post(_community):
                     ':id': {'S':str(post_id)}
                 }
             )
+            url = 'http://localhost:2015/votes/{community}/post/{id}/new_post'
+            url = url.format(community = _community, id = post_id)
+            headers = {'content-type': 'application/json'}
+            r = requests.post(url,json='' ,headers=headers)
             data = data['Items'][0]
             url = "/posts/" +data['community']['S'] +"/post/"+ str(data['post_id']['S'])
         message = {

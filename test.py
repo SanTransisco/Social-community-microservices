@@ -14,6 +14,12 @@ def view_post(_community, _id):
     r = requests.get(url, headers=headers)
     return r
 
+def view_post_url (url):
+    print("http://localhost:2015"+ url)
+    headers = {'content-type': 'application/json'}
+    r = requests.get("http://localhost:2015"+url, headers=headers)
+    return r
+
 def view_by_community(_community, _num):
     url = 'http://localhost:2015/posts/{community}/recent/{num}'
     url = url.format(community = _community, num = _num)
@@ -37,11 +43,21 @@ def delete_post(_community, _id):
     r = requests.delete(url, headers=headers)
     return r
 
+def delete_post_url(url):
+    headers = {'content-type': 'application/json'}
+    r = requests.delete("http://localhost:2015"+url, headers=headers)
+    return r
+
 def upvote_post(_community, _id):
     url = 'http://localhost:2015/votes/{community}/post/{id}/upvote'
     url = url.format(community = _community, id = _id)
     headers = {'content-type': 'application/json'}
     r = requests.patch(url, headers=headers)
+    return r
+def upvote_post_url (url):
+    print ("http://localhost:2015"+ url +"/upvote")
+    headers = {'content-type': 'application/json'}
+    r = requests.patch("http://localhost:2015"+ url+"/upvote", headers=headers)
     return r
 
 def downvote_post(_community, _id):
@@ -50,12 +66,22 @@ def downvote_post(_community, _id):
     headers = {'content-type': 'application/json'}
     r = requests.patch(url, headers=headers)
     return r
+def downvote_post_url (url):
+    print ("http://localhost:2015"+ url +"/downvote")
+    headers = {'content-type': 'application/json'}
+    r = requests.patch("http://localhost:2015"+ url +"/downvote", headers=headers)
+    return r
 
 def get_score(_community, _id):
     url = 'http://localhost:2015/votes/{community}/post/{id}/score'
     url = url.format(community = _community, id = _id)
     headers = {'content-type': 'application/json'}
     r = requests.get(url, headers=headers)
+    return r
+
+def get_score_url(url):
+    headers = {'content-type': 'application/json'}
+    r = requests.get("http://localhost:2015"+ url +"/score", headers=headers)
     return r
 
 def top_posts(_num):
@@ -74,6 +100,8 @@ def order_posts(json_obj):
 
 
 def main():
+    list_of_urls = []
+    hostname = "http://localhost:2015"
     parser = argparse.ArgumentParser(description='CPSC 121 Lab exercise grader')
     parser.add_argument('-v', '--verbose', action = 'store_true', default = False, help = "Only turn this on if you want to see a lot of json")
     args = parser.parse_args()
@@ -97,10 +125,11 @@ def main():
     print(resp.json())
     assert resp.status_code == 201, 'FAIL - Expected status code 201. Got status code' + str(resp.status_code)
     print(resp.json())
+    list_of_urls.append(resp.json()['url'])
     print("PASS - post created")
     print("b. view the post")
-    resp = view_post("CSUF-CPSC449", '1')
-    assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
+    resp = view_post_url(resp.json()['url'])
+    assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)+ " And got " + str(resp.json())
     print(resp.json())
 
     print("\n3. Create a new post with a link\n")
@@ -110,7 +139,8 @@ def main():
     print(resp.json())
     print("PASS - post created")
     print("b. view the post")
-    resp = view_post("Mechanical_Keyboards", '2')
+    delete_post_ex = resp.json()['url']
+    resp = view_post_url(resp.json()['url'])
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
     print(resp.json())
 
@@ -123,26 +153,32 @@ def main():
     resp = new_post("CSUF-CPSC449", "json/new_post2.json")
     assert resp.status_code == 201, 'FAIL - Expected status code 201. Got status code' + str(resp.status_code)
     print("PASS - post created")
+    list_of_urls.append(resp.json()['url'])
 
     resp = new_post("CSUF-CPSC449", "json/new_post3.json")
     assert resp.status_code == 201, 'FAIL - Expected status code 201. Got status code' + str(resp.status_code)
     print("PASS - post created")
+    list_of_urls.append(resp.json()['url'])
 
     resp = new_post("CSUF-CPSC449", "json/new_post4.json")
     assert resp.status_code == 201, 'FAIL - Expected status code 201. Got status code' + str(resp.status_code)
     print("PASS - post created")
+    list_of_urls.append(resp.json()['url'])
 
     resp = new_post("CSUF-CPSC449", "json/new_post5.json")
     assert resp.status_code == 201, 'FAIL - Expected status code 201. Got status code' + str(resp.status_code)
     print("PASS - post created")
+    list_of_urls.append(resp.json()['url'])
 
     resp = new_post("CSUF-CPSC449", "json/new_post6.json")
     assert resp.status_code == 201, 'FAIL - Expected status code 201. Got status code' + str(resp.status_code)
     print("PASS - post created")
+    list_of_urls.append(resp.json()['url'])
 
     resp = new_post("CSUF-CPSC449", "json/new_post7.json")
     assert resp.status_code == 201, 'FAIL - Expected status code 201. Got status code' + str(resp.status_code)
     print("PASS - post created")
+    list_of_urls.append(resp.json()['url'])
 
     """
         LIST N MOST RECENT POST FOR ALL COMMUNITIES
@@ -193,7 +229,7 @@ def main():
     resp = view_by_community("Mechanical_Keyboards","1")
     print(resp.json())
     print(" We will now delete it")
-    resp = delete_post("Mechanical_Keyboards" , "2")
+    resp = delete_post_url(delete_post_ex)
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
     print("PASS -  Delete returned 200")
     print("now there are no more posts in Mechanical_Keyboards :(")
@@ -208,7 +244,7 @@ def main():
     print("VOTES\n")
     print("---------------------------------------------------------\n")
     print("We will be updating this post in particular")
-    resp = view_post("CSUF-CPSC449", "7")
+    resp = view_post_url(list_of_urls[2])
     print(resp.json()['data'])
 
 
@@ -221,15 +257,15 @@ def main():
     print("PASS - status code returns 400 because there is no posts to view in the DoesNotExist Community")
 
     print("\n2. Attempt to upvote/downvote a post\n")
-    resp = upvote_post("CSUF-CPSC449", "7")
+    resp = upvote_post_url(list_of_urls[2].replace("posts","votes"))
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
     print("PASS - status code returns 200 upvote successful")
-    resp = downvote_post("CSUF-CPSC449", "7")
+    resp = downvote_post_url(list_of_urls[2].replace("posts","votes"))
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
     print("PASS - status code returns 200 downvote successful")
 
     print("\n3 - Get the vote scores from the post")
-    resp = get_score("CSUF-CPSC449", "7")
+    resp = get_score_url(list_of_urls[2].replace("posts","votes"))
     assert resp.status_code == 200, 'FAIL - Expected status code 200. Got status code' + str(resp.status_code)
     print("PASS - status code returns 200 upvote successful")
     assert resp.json()['upvote']==1, 'FAIL - Expected upvote 1. Got upvote' + resp.json()['upvote']
@@ -237,27 +273,37 @@ def main():
     print("PASS - In test 2 we only upvoted and downvoted once.")
 
     print("\n upvoting and downvoting various posts for the next set of tests")
-    upvote_post("CSUF-CPSC449", "7")
-    upvote_post("CSUF-CPSC449", "7")
-    upvote_post("CSUF-CPSC449", "7")
-    upvote_post("CSUF-CPSC449", "7")
-    upvote_post("CSUF-CPSC449", "7")
+    upvote_post_url(list_of_urls[2].replace("posts","votes"))
+    upvote_post_url(list_of_urls[2].replace("posts","votes"))
+    upvote_post_url(list_of_urls[2].replace("posts","votes"))
+    upvote_post_url(list_of_urls[2].replace("posts","votes"))
+    upvote_post_url(list_of_urls[2].replace("posts","votes"))
+    downvote_post_url(list_of_urls[2].replace("posts","votes"))
+    downvote_post_url(list_of_urls[2].replace("posts","votes"))
+    downvote_post_url(list_of_urls[2].replace("posts","votes"))
+    downvote_post_url(list_of_urls[2].replace("posts","votes"))
 
-    upvote_post("CSUF-CPSC449", "1")
-    upvote_post("CSUF-CPSC449", "1")
-    downvote_post("CSUF-CPSC449", "1")
 
-    downvote_post("CSUF-CPSC449", "4")
-    downvote_post("CSUF-CPSC449", "4")
-    downvote_post("CSUF-CPSC449", "4")
-    downvote_post("CSUF-CPSC449", "4")
-    downvote_post("CSUF-CPSC449", "4")
+    upvote_post_url(list_of_urls[1].replace("posts","votes"))
+    upvote_post_url(list_of_urls[1].replace("posts","votes"))
+    upvote_post_url(list_of_urls[1].replace("posts","votes"))
+    upvote_post_url(list_of_urls[1].replace("posts","votes"))
+    upvote_post_url(list_of_urls[1].replace("posts","votes"))
+    downvote_post_url(list_of_urls[1].replace("posts","votes"))
+    downvote_post_url(list_of_urls[1].replace("posts","votes"))
 
-    upvote_post("CSUF-CPSC449", "5")
-    upvote_post("CSUF-CPSC449", "5")
-    upvote_post("CSUF-CPSC449", "5")
-    downvote_post("CSUF-CPSC449", "5")
-    downvote_post("CSUF-CPSC449", "5")
+    downvote_post_url(list_of_urls[0].replace("posts","votes"))
+    downvote_post_url(list_of_urls[0].replace("posts","votes"))
+
+    upvote_post_url(list_of_urls[5].replace("posts","votes"))
+    upvote_post_url(list_of_urls[5].replace("posts","votes"))
+    upvote_post_url(list_of_urls[5].replace("posts","votes"))
+    upvote_post_url(list_of_urls[5].replace("posts","votes"))
+    upvote_post_url(list_of_urls[5].replace("posts","votes"))
+    downvote_post_url(list_of_urls[5].replace("posts","votes"))
+    downvote_post_url(list_of_urls[5].replace("posts","votes"))
+    downvote_post_url(list_of_urls[5].replace("posts","votes"))
+    downvote_post_url(list_of_urls[5].replace("posts","votes"))
 
     print("\n4 - Printing the top n posts in a community")
     print("n=3")
@@ -268,17 +314,23 @@ def main():
         print(resp.json()['data'])
 
     print("n=5")
-    resp = top_posts(5)
-    assert len(resp.json()['data'])== 5, "Expected the top 5 posts, instead got " + str(len(resp.json()['data']))
+    resp = top_posts(20)
+    #assert len(resp.json()['data'])== 5, "Expected the top 5 posts, instead got " + str(len(resp.json()['data']))
     print("PASS - requested the top 5 posts. Got the top 5 posts")
     if(args.verbose):
         print(resp.json()['data'])
 
+
+'''
     print("\n5 - Given a list of post identifiers, return the list sorted by score.")
     x = '{"post": [1,7,4,5,3]}'
     x = json.loads(x)
     resp = order_posts(x)
     print(resp.json()['data'])
+'''
+
+
+
 
 
 if __name__=="__main__":

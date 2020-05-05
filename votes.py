@@ -1,6 +1,7 @@
 import flask
 from redis import Redis
 from flask import  g, jsonify, request
+from dateutil import parser
 import json
 import time
 
@@ -17,6 +18,25 @@ Posts_Store = Redis(db =1)
 # ALL: {post1:200, post3:150,post2:50}
 #So you can sort
 Top = Redis(db=2)
+
+from datetime import datetime, timedelta
+from math import log
+
+epoch = datetime(1970, 1, 1)
+
+def epoch_seconds(date):
+    td = date - epoch
+    return td.days * 86400 + td.seconds + (float(td.microseconds) / 1000000)
+
+def score(ups, downs):
+    return ups - downs
+
+def hot(ups, downs, date):
+    s = score(ups, downs)
+    order = log(max(abs(s), 1), 10)
+    sign = 1 if s > 0 else -1 if s < 0 else 0
+    seconds = epoch_seconds(date) - 1134028003
+    return round(sign * order + seconds / 45000, 7)
 
 def decode_redis_results(arr):
     result = []
@@ -35,11 +55,12 @@ def init_db():
 '''
 
 
-@app.route('/votes/<_community>/post/<_post_id>/new_post', methods=['PUT'])
+@app.route('/votes/<_community>/post/<_post_id>/new_post', methods=['POST'])
 def new_post(_community,_post_id):
     try:
         #NEW STUFF
         response = Posts_Store.hgetall(_post_id)
+        time_posted = datetime.now().isoformat()
         #NEW STUFF
         if len(response) != 0 :
             message = {
@@ -52,8 +73,7 @@ def new_post(_community,_post_id):
             response[b"UpVotes"] = str(0).encode("utf-8")
             response[b"DownVotes"] = str(0).encode("utf-8")
             response[b"Total_Score"] = str(0).encode("utf-8")
-            response[b"date_created"] = str(int(time.time())).encode("utf-8")
-
+            response[b"date_created"] = str(time_posted).encode("utf-8")
             message = {
                 'status' : 200,
                 'message' : 'Post :' +_post_id + ' has been created on the voting microservice',
@@ -63,7 +83,8 @@ def new_post(_community,_post_id):
             #MECHANICAL_KEYBOARDS {011021 : 200}
             Top.zadd(_community,{_post_id : 0})
             Top.zadd("All",{_post_id : 0})
-            Top.zadd("HOT",{_post_id : 0})
+            Top.zadd("HOT",{_post_id : hot(0,0, parser.isoparse(time_posted))})
+            
             resp = jsonify(message)
             resp.status_code = 200
     except redis.exceptions as e:
@@ -91,8 +112,6 @@ def upvote_post(_community,_post_id):
             resp = jsonify(message)
             resp.status_code = 404
         else:
-
-
             response[b"UpVotes"] = str(int(response[b"UpVotes"])+1).encode("utf-8")
             response[b"Total_Score"] = str(int(response[b"Total_Score"])+1).encode("utf-8")
 
@@ -107,6 +126,11 @@ def upvote_post(_community,_post_id):
             #MECHANICAL_KEYBOARDS {011021 : 200}
             Top.zadd(_community,{_post_id : int(response[b"Total_Score"])+1})
             Top.zadd("All",{_post_id : int(response[b"Total_Score"])+1})
+            time_posted = response[b"date_created"].decode("utf-8")
+            Top.zadd("HOT",{_post_id : hot(
+                                        int(response[b"UpVotes"]),
+                                        int(response[b"DownVotes"]),
+                                        parser.isoparse(time_posted))})
 
             resp = jsonify(message)
             resp.status_code = 200
@@ -145,6 +169,9 @@ def downvote_post(_community,_post_id):
             Posts_Store.hmset(_post_id,response)
             Top.zadd(_community,{_post_id : int(response[b"Total_Score"])})
             Top.zadd("All",{_post_id : int(response[b"Total_Score"])})
+            time_posted = response[b"date_created"].decode("utf-8")
+            Top.zadd("HOT",{_post_id : hot(int(response[b"UpVotes"]),int(response[b"DownVotes"]), parser.isoparse(time_posted))})
+
             resp = jsonify(message)
             resp.status_code = 200
     except redis.exceptions as e:
@@ -176,6 +203,8 @@ def show_votes(_community, _post_id):
                 'downvote': int(response[b'DownVotes']),
                 'message' : 'Post: ' + _post_id + ' votes reported'
             }
+            time_posted = response[b"date_created"].decode("utf-8")
+            Top.zadd("HOT",{_post_id : hot(int(response[b"UpVotes"]),int(response[b"DownVotes"]), parser.isoparse(time_posted))})
             resp = jsonify(message)
             resp.status_code = 200
 
@@ -202,7 +231,30 @@ def top_posts(n_posts):
         resp = jsonify(message)
         resp.status_code = 200
 
-    except sqlite3.Error as e:
+    except redis.exceptions as e:
+        message = {
+            'status' : 400,
+            'message' : "Bad Request, Posts not found",
+        }
+        resp = jsonify(message)
+        resp.status_code = 400
+
+    return resp
+
+@app.route('/votes/all/hot/<n_posts>', methods=['GET'])
+def hot_posts(n_posts):
+    try:
+        result=Top.zrevrange("HOT",0,int(n_posts)-1)
+        payload = decode_redis_results(result)
+        message = {
+            'status' : 200,
+            'data' : result,
+            'message': 'These are the top scoring posts'
+        }
+        resp = jsonify(message)
+        resp.status_code = 200
+
+    except redis.exceptions as e:
         message = {
             'status' : 400,
             'message' : "Bad Request, Posts not found",
@@ -225,7 +277,7 @@ def top_posts_community(_community, n_posts):
         resp = jsonify(message)
         resp.status_code = 200
 
-    except sqlite3.Error as e:
+    except redis.exceptions as e:
         message = {
             'status' : 400,
             'message' : "Bad Request- Community or Post does not exists"

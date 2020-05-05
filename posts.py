@@ -1,113 +1,70 @@
 import flask
 from flask import render_template, g, jsonify, request
+import boto3
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
+import json
+import uuid
 import time
+from datetime import datetime
+import pytz
+from operator import itemgetter
+
 app = flask.Flask(__name__)
 
-def normalize_dictionary(list):
+def format_list(list):
     result = []
-    for element in list:
-        dict = {}
-        dict['post_id'] = element['post_id']['S']
-        dict['author'] = element['author']['S']
-        dict['time_posted'] = element['time_posted']['N']
-        dict['text'] = element['text']['S']
-        dict['community'] = element['community']['S']
-        dict['title'] = element['url']['S']
-        result.append(dict)
+    for x in list:
+        element = {}
+        element['post_id']= x['post_id']['S']
+        element['community']= x['community']['S']
+        element['author']= x['author']['S']
+        element['title']=x['title']['S']
+        element['text']=x['text']['S']
+        element['date']=int(x['date']['N'])
+        if 'url' in x:
+            element['url'] = x['url']['S']
+        result.append(element)
     return result
-
-
-@app.teardown_appcontext
-def close_connection(exception):
-    pass
 
 @app.cli.command('init')
 def init_db():
-    dynamodb = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-	table = dynamodb.create_table(
-		AttributeDefinitions=[
-			{
-				'AttributeName': 'post_id',
-				'AttributeType': 'S'
-			},
-			{
-				'AttributeName': 'community',
-				'AttributeType': 'S'  #Partition key
-			},
-			{
-				'AttributeName': 'time_posted',
-				'AttributeType': 'N'
-			}
-		],
-		TableName='posts',
-		KeySchema=[
-		    {
-		        'AttributeName': 'community',
-		        'KeyType': 'HASH'  #Partition key
-		    },
-			{
-				'AttributeName': 'post_id',
-				'KeyType': 'RANGE'  #SORT key
-			}
-		],
-		LocalSecondaryIndexes=[
-			{
-				'IndexName': 'Recent',
-				'KeySchema':[
-				 	{
-		 		        'AttributeName': 'community',
-		 		        'KeyType': 'HASH'  #Partition key
-		 		    },
-    		    	{
-    		        	'AttributeName': 'time_posted',
-    		        	'KeyType': 'RANGE'  #SORT key
-    		    	}
-				],
-				'Projection': {
-	                'ProjectionType': 'ALL'
-            	},
-			}
-		],
-		ProvisionedThroughput={
-		    'ReadCapacityUnits': 100,
-		    'WriteCapacityUnits': 100
-		}
-	)
+    #create_table()
+    pass
 
 @app.route('/posts/<_community>/post/<_post_id>', methods=['GET', 'DELETE'])
 def view_post(_community,_post_id):
     if request.method== 'GET':
         try:
-            dynamodb = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-            x = dynamodb.query(
-                TableName = 'posts',
-                Select = 'ALL_ATTRIBUTES',
-                KeyConditionExpression = "community = :comm AND post_id = :id",
+            db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+            y = int(time.time())
+            data = db.query(
+                TableName='posts',
+                KeyConditionExpression="community = :comm AND post_id =:id",
                 ExpressionAttributeValues={
-                    ":comm": {'S':_community},
-                    ":id": {'S':_post_id}
+                    ':comm' :{ 'S': _community },
+                    ':id': {'S': str(post_id)}
                 }
             )
-            if(len(x["Items"]) == 0 ):
+            data = data['Items']
+            new_Data = json.dumps(format_list(data)[0])
+            if(len(data) <= 2 ):
                 message = {
-                    'status' : 404,
+                    'status' : 400,
                     'message' : "Bad Request, Post not found "
                     }
                 resp = jsonify(message)
                 resp.status_code = 400
             else:
-                final_data = normalize_dictionary(x["Items"])
                 message = {
                     'status' : 200,
-                    'data' : final_data,
+                    'data' : new_Data,
                     'message': '200 ok'
                 }
                 resp = jsonify(message)
                 resp.status_code = 200
 
-        except sqlite3.Error as e:
+        except:
             message = {
                 'status' : 400,
                 'message' : "Bad Request, Post not found " + str(e) + " " + _community
@@ -118,12 +75,10 @@ def view_post(_community,_post_id):
         return resp
     elif request.method == 'DELETE':
         try:
-            dynamodb = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-            x = dynamodb.delete_item(
-                TableName = 'posts',
-                Key = {
-                    "community": {'S': _community},
-                    ":id": {'S': _post_id}
+            response = table.delete_item(
+                Key={
+                    'post_id': _post_id,
+                    'community': _community
                 }
             )
             message = {
@@ -132,10 +87,11 @@ def view_post(_community,_post_id):
             }
             resp = jsonify(message)
             resp.status_code = 200
+
         except:
             message = {
                 'status' : 400,
-                'message' : "Bad Request, fail to delete sql"
+                'message' : "Bad Request, fail to delete"
                 }
             resp = jsonify(message)
             resp.status_code = 400
@@ -145,35 +101,30 @@ def view_post(_community,_post_id):
 @app.route('/posts/<_community>/recent/<_n_posts>', methods=['GET'])
 def view_community(_community, _n_posts):
     try:
-        boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-        epoch = time.gmtime(0)
-        x = dynamodb.query(
-            TableName = 'posts',
-            IndexName = 'Recent',
+        db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        y = int(time.time())
+        data = db.query(
+            TableName='posts',
+            IndexName = 'recent',
             Limit = int(_n_posts),
-            Select = 'ALL_ATTRIBUTES',
-            KeyConditionExpression = "community = :comm AND time_posted < :time",
+            KeyConditionExpression="community = :comm AND #d <= :date",
+            ExpressionAttributeNames={
+                '#d' : 'date'
+            },
             ExpressionAttributeValues={
-                ":comm": {'S':_community},
-                ":time": {'N': str(epoch)}
+                ':comm' :{ 'S': _community},
+                ':date': { 'N': str(y) }
             }
         )
-        if(len(x["Items"]) == 0 ):
-            message = {
-                'status' : 404,
-                'message' : "Bad Request, Post not found "
-                }
-            resp = jsonify(message)
-            resp.status_code = 400
-        else:
-            final_data = normalize_dictionary(x["Items"])
-            message = {
-                'status' : 200,
-                'data' : final_data,
-                'message': '200 ok'
+        data = data['Items']
+        new_Data = json.dumps(format_list(data))
+        message = {
+            'status' : 200,
+            'data' : new_Data,
+            'message': '200 ok'
             }
-            resp = jsonify(message)
-            resp.status_code = 200
+        resp = jsonify(message)
+        resp.status_code = 200
 
     except:
         message = {
@@ -188,36 +139,33 @@ def view_community(_community, _n_posts):
 @app.route('/posts/all/recent/<_n_posts>', methods=['GET'])
 def view_all(_n_posts):
     try:
-        boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-        epoch = time.gmtime(0)
-        x = dynamodb.query(
-            TableName = 'posts',
-            IndexName = 'Recent',
+        db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        y = int(time.time())
+        print("Current Time")
+        print(y)
+        data = db.query(
+            TableName='posts',
+            IndexName='recent',
             Limit = int(_n_posts),
             Select = 'ALL_ATTRIBUTES',
-            KeyConditionExpression = "community = :comm AND time_posted < :time",
+            KeyConditionExpression="community = :comm AND #d <= :date",
+            ExpressionAttributeNames={
+                '#d' : 'date'
+            },
             ExpressionAttributeValues={
-                ":comm": {'S':"All"},
-                ":time": {'N': str(epoch)}
+                ':comm' :{ 'S': "All"},
+                ':date': { 'N': str(y) }
             }
         )
-        if(len(x["Items"]) == 0 ):
-            message = {
-                'status' : 404,
-                'message' : "Bad Request, Post not found "
-                }
-            resp = jsonify(message)
-            resp.status_code = 400
-        else:
-            final_data = normalize_dictionary(x["Items"])
-            message = {
-                'status' : 200,
-                'data' : final_data,
-                'message': '200 ok'
+        data = data['Items']
+        new_Data = json.dumps(format_list(data))
+        message = {
+            'status' : 200,
+            'data' : new_Data,
+            'message': '200 ok'
             }
-            resp = jsonify(message)
-            resp.status_code = 200
-
+        resp = jsonify(message)
+        resp.status_code = 200
     except:
         message = {
             'status' : 400,
@@ -231,47 +179,82 @@ def view_all(_n_posts):
 @app.route('/posts/<_community>/new', methods=['POST'])
 def new_post(_community):
     try:
+        dynamodb = boto3.resource('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+        table = dynamodb.Table('posts')
         x = request.json
-        dynamodb = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
-
+        post_id = uuid.uuid4()
+        date = time.time()
+        #date = datetime.utcnow()
+        #date = date.replace(tzinfo=pytz.utc)
         if 'url' in x:
-            dynamodb.put_item(
-                TableName = 'posts',
+            table.put_item(
                 Item={
-                    'post_id': {'S':'2'},
-                    'community': {'S':"Mechanical_Keyboards"},
-                    'time_posted': {'N':"1001"},
-                    'author': {'S':"San"},
-                    'title': {'S':"Mods before Alphas"},
-                    'url': {'S':"reddit.com"},
-                    'text': {'S':"Why did Drop send my stuff in two packages"},
+                     'post_id': str(post_id),
+                     'community': x['community'],
+		             'author': x['author'],
+		             'title': x['title'],
+                     'url': x['url'],
+                     'text': x['text'],
+		             'date': int(date)
+                 }
+            )
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': "All",
+		             'author': x['author'],
+		             'title': x['title'],
+                     'url': x['url'],
+                     'text': x['text'],
+		             'date': int(date)
                  }
             )
         else:
-            dynamodb.put_item(
-                TableName = 'posts',
+            table.put_item(
                 Item={
-                    'post_id': {'S':'2'},
-                    'community': {'S':"Mechanical_Keyboards"},
-                    'time_posted': {'N':"1001"},
-                    'author': {'S':"San"},
-                    'title': {'S':"Mods before Alphas"},
-                    'text': {'S':"Why did Drop send my stuff in two packages"},
-
+                     'post_id': str(post_id),
+                     'community': x['community'],
+                     'author': x['author'],
+	                 'title': x['title'],
+ 		             'text': x['text'],
+                     'date': int(date)
                  }
             )
+            table.put_item(
+                Item={
+                     'post_id': str(post_id),
+                     'community': 'All',
+                     'author': x['author'],
+	                 'title': x['title'],
+ 		             'text': x['text'],
+                     'date': int(date)
+                 }
+            )
+
+        with app.app_context():
+            db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
+            data = db.query(
+                TableName='posts',
+                KeyConditionExpression="community = :comm AND post_id =:id",
+                ExpressionAttributeValues={
+                    ':comm' :{ 'S': x['community'] },
+                    ':id': {'S':str(post_id)}
+                }
+            )
+            data = data['Items'][0]
+            url = "/posts/" +data['community']['S'] +"/post/"+ str(data['post_id']['S'])
         message = {
             'status' : 201,
-            'url' : url,
+            'url' : str(url),
             'message' : "Insert successfully"
             }
         resp = jsonify(message)
         resp.status_code = 201
 
-    except sqlite3.Error as e:
+    except:
         message = {
             'status' : 400,
-            'message' : "Bad Request, fail to insert sql " + str(e)
+            'message' : "Bad Request, fail to insert sql"
             }
         resp = jsonify(message)
         resp.status_code = 400

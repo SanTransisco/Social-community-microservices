@@ -320,14 +320,40 @@ def main():
     if(args.verbose):
         print(resp.json()['data'])
 
+    """
+        BFF MICROSERVICES TESTING
+    """
+    print("---------------------------------------------------------\n")
+    print("BFF\n")
+    print("---------------------------------------------------------\n")
+    url1 = 'http://localhost:6000/BFF/all/recent'
+    r = requests.get(url1)
+    with open('xml/recent.xml', 'wb') as f:
+        f.write(r.content)
 
-'''
-    print("\n5 - Given a list of post identifiers, return the list sorted by score.")
-    x = '{"post": [1,7,4,5,3]}'
-    x = json.loads(x)
-    resp = order_posts(x)
-    print(resp.json()['data'])
-'''
+    url2 = 'http://localhost:6000/BFF/CSUF-CPSC449/recent'
+    r = requests.get(url2)
+    with open('xml/CSUF-CPSC449recent.xml', 'wb') as f:
+        f.write(r.content)
+
+    url3 = 'http://localhost:6000/BFF/CSUF-CPSC449/top'
+    r = requests.get(url3)
+    with open('xml/CSUF-CPSC449top.xml', 'wb') as f:
+        f.write(r.content)
+
+    url4 = 'http://localhost:6000/BFF/all/top'
+    r = requests.get(url4)
+    with open('xml/alltop.xml', 'wb') as f:
+        f.write(r.content)
+
+    url5 = 'http://localhost:6000/BFF/all/hot'
+    r = requests.get(url5)
+    with open('xml/hot.xml', 'wb') as f:
+        f.write(r.content)
+
+
+
+
 
 
 

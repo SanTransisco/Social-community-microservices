@@ -38,6 +38,9 @@ def init_db():
 def view_post(_community,_post_id):
     db = boto3.client('dynamodb', region_name='us-west-2', endpoint_url="http://localhost:8000")
     test =0
+    if(_community.upper()=="ALL"):
+        _community = "All"
+    
     if request.method== 'GET':
         try:
             test = 1

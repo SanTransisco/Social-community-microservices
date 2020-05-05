@@ -134,6 +134,7 @@ def all_top_posts():
     url = url.format(num = 25)
     headers = {'content-type': 'application/json'}
     r = requests.get(url, headers=headers)
+    print(str(r.status_code)+ "<<<-----======")
     data = r.json()
     post_id = data['data']
 
@@ -145,10 +146,12 @@ def all_top_posts():
     fg.language('en')
 
     for i in post_id:
+        print("Does it break here?")
         url = 'http://localhost:2015/posts/all/post/{id}'
         url = url.format(id = i)
         headers = {'content-type': 'application/json'}
         r = requests.get(url, headers=headers)
+        print("Or Here?")
         data = r.json()
         post_info = data['data']
 

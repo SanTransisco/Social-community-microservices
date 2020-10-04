@@ -1,5 +1,5 @@
 # cpsc449-proj1-microservices
-
+The goal of this software was to make a set of web services that would facilitate the creation of a social media site much like reddit. Using Microservices we split up the various services of such a social media site to two services: Posting and voting. Creating the services in this way allows the web service to scales easier, as each instance of the service is isolate from the other so to scale up all we need to do is start up more posting or voting processes.
 # Authors:
 1. Lambert Liu
 2. Shijie Feng
